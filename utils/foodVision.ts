@@ -1,0 +1,309 @@
+import * as ImageManipulator from 'expo-image-manipulator';
+
+export type FoodItem = {
+  name: string;
+  estimated_g: number;
+  cal_per100g: number;
+  protein_per100g: number;
+  carbs_per100g: number;
+  fat_per100g: number;
+  fiber_per100g: number;
+  sodium_per100g: number;
+};
+
+export type FoodVisionResult = {
+  description: string;
+  confidence: 'low' | 'medium' | 'high';
+  items: FoodItem[];
+  fiber_g: number;
+  sodium_mg: number;
+  sugar_g: number;
+  // Computed from items
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+};
+
+export type FoodVisionErrorCode = 'no_key' | 'network' | 'parse' | 'api_error' | 'timeout';
+
+export class FoodVisionError extends Error {
+  code: FoodVisionErrorCode;
+  constructor(message: string, code: FoodVisionErrorCode) {
+    super(message);
+    this.code = code;
+  }
+}
+
+async function compressFoodImage(uri: string): Promise<string> {
+  const compressed = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 768 } }],
+    { compress: 0.35, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+  );
+  if (!compressed.base64) throw new Error('Could not prepare image for analysis.');
+  return compressed.base64;
+}
+
+function computeTotals(items: FoodItem[]) {
+  let calories = 0, protein_g = 0, carbs_g = 0, fat_g = 0;
+  for (const item of items) {
+    const g = item.estimated_g;
+    calories  += (item.cal_per100g     / 100) * g;
+    protein_g += (item.protein_per100g / 100) * g;
+    carbs_g   += (item.carbs_per100g   / 100) * g;
+    fat_g     += (item.fat_per100g     / 100) * g;
+  }
+  return {
+    calories:  Math.max(0, Math.round(calories)),
+    protein_g: Math.max(0, Math.round(protein_g)),
+    carbs_g:   Math.max(0, Math.round(carbs_g)),
+    fat_g:     Math.max(0, Math.round(fat_g)),
+  };
+}
+
+// Shared JSON → FoodVisionResult parser used by both Gemini and OpenAI paths
+function parseRawJSON(raw: string): FoodVisionResult {
+  raw = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+  if (!raw.startsWith('{')) {
+    const match = raw.match(/\{[\s\S]*\}/);
+    raw = match ? match[0] : raw;
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new FoodVisionError("Couldn't read AI response. Please try again.", 'parse');
+  }
+
+  const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+  const items: FoodItem[] = rawItems.map((it: Record<string, unknown>) => ({
+    name:             typeof it.name === 'string' ? it.name : 'Food item',
+    estimated_g:      Math.max(0, Math.round(Number(it.estimated_g)      || 0)),
+    cal_per100g:      Math.max(0, Math.round(Number(it.cal_per100g)      || 0)),
+    protein_per100g:  Math.max(0, Math.round(Number(it.protein_per100g)  || 0)),
+    carbs_per100g:    Math.max(0, Math.round(Number(it.carbs_per100g)    || 0)),
+    fat_per100g:      Math.max(0, Math.round(Number(it.fat_per100g)      || 0)),
+    fiber_per100g:    Math.max(0, Number(it.fiber_per100g)               || 0),
+    sodium_per100g:   Math.max(0, Number(it.sodium_per100g)              || 0),
+  }));
+
+  if (items.length === 0) {
+    throw new FoodVisionError("Couldn't identify any food items. Please try again.", 'parse');
+  }
+
+  return {
+    description: typeof parsed.description === 'string' ? parsed.description : '',
+    confidence: (['low', 'medium', 'high'] as const).includes(parsed.confidence as 'low')
+      ? (parsed.confidence as 'low' | 'medium' | 'high')
+      : 'low',
+    items,
+    fiber_g:   Math.max(0, Math.round(Number(parsed.fiber_g)   || 0)),
+    sodium_mg: Math.max(0, Math.round(Number(parsed.sodium_mg) || 0)),
+    sugar_g:   Math.max(0, Math.round(Number(parsed.sugar_g)   || 0)),
+    ...computeTotals(items),
+  };
+}
+
+const BASE_PROMPT =
+  'Analyze this food photo for a fitness nutrition log. Return ONLY valid JSON with no extra text:\n' +
+  '{"description":"","confidence":"low|medium|high","fiber_g":0,"sodium_mg":0,"sugar_g":0,' +
+  '"items":[{"name":"","estimated_g":0,"cal_per100g":0,"protein_per100g":0,"carbs_per100g":0,' +
+  '"fat_per100g":0,"fiber_per100g":0,"sodium_per100g":0}]}\n' +
+  'List each distinct food/ingredient as a separate item. ' +
+  'Use scale references visible in frame (fork, hand, plate ~26cm) to estimate weights. ' +
+  'If no scale reference, use typical serving sizes. ' +
+  'High confidence = food and portions clearly identifiable. ' +
+  'Estimate fiber and sodium per item from typical food composition.';
+
+function buildPrompt(hint?: string): string {
+  if (!hint?.trim()) return BASE_PROMPT;
+  return BASE_PROMPT + `\n\nUser hint: "${hint.trim()}" — use this to correct food identification if the photo is ambiguous.`;
+}
+
+// ─── Gemini path ──────────────────────────────────────────────────────────────
+
+async function analyzeWithGemini(base64: string, key: string, hint?: string): Promise<FoodVisionResult> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+
+  const body = JSON.stringify({
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+        { text: buildPrompt(hint) },
+      ],
+    }],
+    generationConfig: {
+      maxOutputTokens: 1500,
+      temperature: 0,
+      responseMimeType: 'application/json',
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+
+  const doFetch = async (): Promise<Response> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20_000);
+    try {
+      return await fetch(url, { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body });
+    } catch (err: unknown) {
+      const isAbort = err instanceof Error && err.name === 'AbortError';
+      if (isAbort) throw new FoodVisionError('Food analysis is taking too long. Please try again.', 'timeout');
+      throw new FoodVisionError('No internet connection.', 'network');
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  let res = await doFetch();
+  if (res.status === 503 || res.status === 429) {
+    await new Promise((r) => setTimeout(r, res.status === 429 ? 5000 : 2500));
+    res = await doFetch();
+  }
+  if (!res.ok) throw new FoodVisionError(`gemini:${res.status}`, 'api_error');
+
+  const json = await res.json();
+  const parts: Array<{ text?: string; thought?: boolean }> =
+    json.candidates?.[0]?.content?.parts ?? [];
+  const textPart = parts.find((p) => !p.thought && p.text);
+  const raw = textPart?.text?.trim() ?? '';
+  if (!raw) throw new FoodVisionError("Couldn't read AI response. Please try again.", 'parse');
+  return parseRawJSON(raw);
+}
+
+// ─── OpenRouter fallback path ─────────────────────────────────────────────────
+
+const OR_MODELS = ['google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free'];
+
+async function openRouterPhotoFetch(base64: string, key: string, model: string, hint?: string): Promise<Response> {
+  return fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`,
+      'HTTP-Referer': 'https://gymbro.app',
+      'X-Title': 'GymBro',
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
+          { type: 'text', text: buildPrompt(hint) },
+        ],
+      }],
+      max_tokens: 1500,
+      temperature: 0,
+    }),
+  });
+}
+
+async function analyzeWithOpenRouter(base64: string, key: string, hint?: string): Promise<FoodVisionResult> {
+  for (const model of OR_MODELS) {
+    let res = await openRouterPhotoFetch(base64, key, model, hint);
+    if (res.status === 429 || res.status === 503) {
+      await new Promise((r) => setTimeout(r, 3000));
+      res = await openRouterPhotoFetch(base64, key, model, hint);
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.warn('[OpenRouter photo]', model, res.status, body.slice(0, 200));
+      continue; // try next model
+    }
+    const json = await res.json();
+    const raw: string = json.choices?.[0]?.message?.content?.trim() ?? '';
+    if (!raw) continue;
+    return parseRawJSON(raw);
+  }
+  throw new FoodVisionError('openrouter: all models failed', 'api_error');
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export async function analyzeFoodPhoto(imageUri: string, hint?: string): Promise<FoodVisionResult> {
+  const geminiKey1 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY;
+  if (!geminiKey1) throw new FoodVisionError('API key not configured.', 'no_key');
+
+  const base64 = await compressFoodImage(imageUri);
+
+  try {
+    return await analyzeWithGemini(base64, geminiKey1, hint);
+  } catch (err1) {
+    if (!(err1 instanceof FoodVisionError) || err1.code !== 'api_error') throw err1;
+
+    const geminiKey2 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY_2;
+    if (geminiKey2) {
+      try {
+        return await analyzeWithGemini(base64, geminiKey2, hint);
+      } catch { /* fall through */ }
+    }
+
+    const geminiKey3 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY_3;
+    if (geminiKey3) {
+      try {
+        return await analyzeWithGemini(base64, geminiKey3, hint);
+      } catch { /* fall through */ }
+    }
+
+    throw new FoodVisionError(
+      'All AI providers are busy right now. Please wait a moment and try again.',
+      'api_error'
+    );
+  }
+}
+
+export function recomputeTotals(items: FoodItem[]): Pick<FoodVisionResult, 'calories' | 'protein_g' | 'carbs_g' | 'fat_g'> {
+  return computeTotals(items);
+}
+
+// ─── Text-based query helper (used by voice item parsing in nutrition.tsx) ────
+
+async function tryGeminiText(prompt: string, key: string): Promise<string | null> {
+  const body = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      maxOutputTokens: 800,
+      temperature: 0,
+      responseMimeType: 'application/json',
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+  let res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+  if (res.status === 503 || res.status === 429) {
+    await new Promise((r) => setTimeout(r, res.status === 429 ? 5000 : 2500));
+    res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+  }
+  if (!res.ok) return null;
+  const json = await res.json();
+  const parts: Array<{ text?: string; thought?: boolean }> =
+    json.candidates?.[0]?.content?.parts ?? [];
+  const raw = parts.find((p) => !p.thought && p.text)?.text?.trim() ?? '';
+  return raw || null;
+}
+
+
+export async function queryFoodText(prompt: string): Promise<string> {
+  const key1 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY;
+  const key2 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY_2;
+
+  if (key1) {
+    const result = await tryGeminiText(prompt, key1);
+    if (result) return result;
+  }
+
+  if (key2) {
+    const result = await tryGeminiText(prompt, key2);
+    if (result) return result;
+  }
+
+  const key3 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY_3;
+  if (key3) {
+    const result = await tryGeminiText(prompt, key3);
+    if (result) return result;
+  }
+
+  throw new Error('All AI providers are busy right now. Please try again.');
+}
