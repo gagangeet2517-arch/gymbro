@@ -1,8 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  FlatList,
   InputAccessoryView,
   Keyboard,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,9 +14,18 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBodyMetrics } from '../../context/BodyMetricsContext';
+import { Exercise, useExercises } from '../../context/ExerciseContext';
+import { useWorkout } from '../../context/WorkoutContext';
+import { builtInExercises, MUSCLE_GROUPS } from '../../data/exerciseCatalog';
+import {
+  durationMinFrom,
+  estimateCaloriesBurned,
+  setsCompletedFromExercises,
+  totalVolumeFromExercises,
+} from '../../utils/calorieBurn';
 
 const KBD_ID = 'workout-kbd';
-import { useWorkout } from '../../context/WorkoutContext';
 
 const COLORS = {
   bg: '#0A0B0F',
@@ -22,6 +34,7 @@ const COLORS = {
   border: '#232734',
   textPrimary: '#F5F7FB',
   textSecondary: '#9AA3B2',
+  textMuted: '#5A6478',
   accent: '#22C55E',
   accentSoft: 'rgba(34, 197, 94, 0.12)',
   danger: '#EF4444',
@@ -30,6 +43,13 @@ const COLORS = {
 };
 
 type OverlayType = 'leave' | 'finish' | null;
+
+type FinishSummary = {
+  caloriesBurned: number | null;
+  totalVolume: number;
+  durationMin: number;
+  setsCompleted: number;
+};
 
 function formatLastWorkoutSummary(
   summary?: {
@@ -63,6 +83,128 @@ function formatPrefillDate(dateString?: string | null) {
   });
 }
 
+const GROUP_TABS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Full Body', 'Custom'];
+
+function ExercisePickerModal({
+  visible,
+  onClose,
+  onPick,
+  existingIds,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onPick: (exercise: Exercise) => void;
+  existingIds: Set<string>;
+}) {
+  const { customExercises } = useExercises();
+  const [query, setQuery] = useState('');
+  const [activeGroup, setActiveGroup] = useState('All');
+
+  const results = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    const matches = (e: Exercise) =>
+      !q ||
+      e.name.toLowerCase().includes(q) ||
+      e.muscle.toLowerCase().includes(q) ||
+      e.equipment.toLowerCase().includes(q);
+
+    let pool: Exercise[];
+    if (activeGroup === 'Custom') {
+      pool = customExercises.filter(matches);
+    } else {
+      const subgroups = activeGroup === 'All' ? null : MUSCLE_GROUPS[activeGroup];
+      pool = builtInExercises.filter((e) => {
+        if (subgroups && !subgroups.includes(e.muscle)) return false;
+        return matches(e);
+      });
+      if (activeGroup === 'All') {
+        pool = [...pool, ...customExercises.filter(matches)];
+      }
+    }
+    return pool;
+  }, [query, activeGroup, customExercises]);
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={styles.pickerSafe}>
+        <View style={styles.pickerHeader}>
+          <Text style={styles.pickerTitle}>Add Exercise</Text>
+          <TouchableOpacity style={styles.pickerCloseBtn} onPress={onClose} activeOpacity={0.8}>
+            <Text style={styles.pickerCloseBtnText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.pickerSearchWrap}>
+          <Ionicons name="search" size={15} color={COLORS.textMuted} style={{ marginLeft: 12 }} />
+          <TextInput
+            style={styles.pickerSearchInput}
+            placeholder="Search exercises..."
+            placeholderTextColor={COLORS.textMuted}
+            value={query}
+            onChangeText={setQuery}
+            clearButtonMode="while-editing"
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.pickerTabsWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerTabsContent}>
+            {GROUP_TABS.map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.pickerTab, activeGroup === tab && styles.pickerTabActive]}
+                onPress={() => setActiveGroup(tab)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.pickerTabText, activeGroup === tab && styles.pickerTabTextActive]}>
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        <FlatList
+          data={results}
+          keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <View style={styles.pickerEmpty}>
+              <Text style={styles.pickerEmptyText}>No exercises found</Text>
+            </View>
+          }
+          renderItem={({ item }) => {
+            const alreadyIn = existingIds.has(item.id);
+            return (
+              <View style={styles.pickerRow}>
+                <View style={styles.pickerRowInfo}>
+                  <Text style={styles.pickerRowName}>{item.name}</Text>
+                  <Text style={styles.pickerRowMeta}>
+                    {item.muscle} • {item.equipment}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={alreadyIn ? styles.pickerAddedBtn : styles.pickerAddBtn}
+                  onPress={() => {
+                    if (alreadyIn) return;
+                    onPick(item);
+                  }}
+                  activeOpacity={alreadyIn ? 1 : 0.8}
+                >
+                  <Text style={alreadyIn ? styles.pickerAddedBtnText : styles.pickerAddBtnText}>
+                    {alreadyIn ? 'Added' : 'Add'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }}
+        />
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
 export default function ActiveWorkoutScreen() {
   const {
     activeWorkout,
@@ -70,11 +212,17 @@ export default function ActiveWorkoutScreen() {
     removeSetFromExercise,
     toggleSetDone,
     updateSetField,
+    addExerciseToActiveWorkout,
+    removeExerciseFromActiveWorkout,
     finishWorkout,
     discardWorkout,
   } = useWorkout();
+  const { latestEntry: bodyEntry } = useBodyMetrics();
 
   const [overlayType, setOverlayType] = useState<OverlayType>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  const [finishSummary, setFinishSummary] = useState<FinishSummary | null>(null);
 
   if (!activeWorkout) {
     return (
@@ -96,6 +244,8 @@ export default function ActiveWorkoutScreen() {
     (exercise) => exercise.prefilledFromLastWorkout
   );
 
+  const existingIds = new Set(activeWorkout.exercises.map((e) => e.id));
+
   const closeOverlay = () => setOverlayType(null);
 
   const confirmDiscard = () => {
@@ -110,8 +260,24 @@ export default function ActiveWorkoutScreen() {
   };
 
   const confirmFinish = () => {
-    finishWorkout();
+    const exercises = activeWorkout.exercises;
+    const durationMin = durationMinFrom(activeWorkout.startedAt);
+    const totalVolume = totalVolumeFromExercises(exercises);
+    const setsCompleted = setsCompletedFromExercises(exercises);
+    const caloriesBurned = estimateCaloriesBurned({
+      weightKg: bodyEntry?.weight ?? null,
+      bodyFatPct: bodyEntry?.bodyFat ?? null,
+      durationMin,
+      totalVolumeKg: totalVolume,
+    });
+
+    finishWorkout({ durationMin, totalVolume, caloriesBurned });
     setOverlayType(null);
+    setFinishSummary({ caloriesBurned, totalVolume, durationMin, setsCompleted });
+  };
+
+  const closeFinishSummary = () => {
+    setFinishSummary(null);
     router.replace('/(tabs)/explore');
   };
 
@@ -125,7 +291,7 @@ export default function ActiveWorkoutScreen() {
           style={styles.container}
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={overlayType === null}
+          scrollEnabled={overlayType === null && finishSummary === null && pendingRemoveId === null}
         >
           <View style={styles.headerRow}>
             <TouchableOpacity
@@ -170,6 +336,9 @@ export default function ActiveWorkoutScreen() {
                   <Text style={styles.exerciseName}>{exercise.name}</Text>
                   <Text style={styles.exerciseMeta}>
                     {exercise.muscle} • {exercise.equipment}
+                    {exercise.targetSets && exercise.targetReps
+                      ? ` • Target: ${exercise.targetSets}×${exercise.targetReps}`
+                      : ''}
                   </Text>
                   {exercise.prefilledFromLastWorkout &&
                   exercise.lastWorkoutSummary ? (
@@ -178,6 +347,15 @@ export default function ActiveWorkoutScreen() {
                     </Text>
                   ) : null}
                 </View>
+
+                <TouchableOpacity
+                  style={styles.removeExerciseBtn}
+                  activeOpacity={0.8}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => setPendingRemoveId(exercise.id)}
+                >
+                  <Ionicons name="close" size={16} color={COLORS.danger} />
+                </TouchableOpacity>
               </View>
 
               {exercise.sets.map((set, index) => (
@@ -251,6 +429,15 @@ export default function ActiveWorkoutScreen() {
               </TouchableOpacity>
             </View>
           ))}
+
+          <TouchableOpacity
+            style={styles.addExerciseButton}
+            activeOpacity={0.85}
+            onPress={() => setPickerOpen(true)}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={COLORS.accent} />
+            <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
+          </TouchableOpacity>
         </ScrollView>
 
         {overlayType !== null ? (
@@ -324,6 +511,93 @@ export default function ActiveWorkoutScreen() {
             </View>
           </View>
         ) : null}
+
+        {pendingRemoveId !== null ? (
+          <View style={styles.overlay}>
+            <View style={styles.overlayCard}>
+              <Text style={styles.overlayEmoji}>✕</Text>
+              <Text style={styles.overlayTitle}>Remove exercise?</Text>
+              <Text style={styles.overlayText}>
+                This will remove it from the current session only. Your template stays intact.
+              </Text>
+              <View style={styles.overlayActions}>
+                <TouchableOpacity
+                  style={styles.overlaySecondaryButtonHalf}
+                  activeOpacity={0.85}
+                  onPress={() => setPendingRemoveId(null)}
+                >
+                  <Text style={styles.overlaySecondaryButtonText}>Keep</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.overlayDangerButtonHalf}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    removeExerciseFromActiveWorkout(pendingRemoveId);
+                    setPendingRemoveId(null);
+                  }}
+                >
+                  <Text style={styles.overlayDangerButtonText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {finishSummary ? (
+          <View style={styles.overlay}>
+            <View style={styles.overlayCard}>
+              <Text style={styles.overlayEmoji}>🔥</Text>
+              <Text style={styles.overlayTitle}>Workout complete</Text>
+
+              <View style={styles.statsGrid}>
+                <View style={styles.statTile}>
+                  <Text style={styles.statValue}>
+                    {finishSummary.caloriesBurned != null ? finishSummary.caloriesBurned : '—'}
+                  </Text>
+                  <Text style={styles.statLabel}>kcal burned</Text>
+                </View>
+                <View style={styles.statTile}>
+                  <Text style={styles.statValue}>{finishSummary.durationMin}</Text>
+                  <Text style={styles.statLabel}>minutes</Text>
+                </View>
+                <View style={styles.statTile}>
+                  <Text style={styles.statValue}>
+                    {Math.round(finishSummary.totalVolume)}
+                  </Text>
+                  <Text style={styles.statLabel}>kg volume</Text>
+                </View>
+                <View style={styles.statTile}>
+                  <Text style={styles.statValue}>{finishSummary.setsCompleted}</Text>
+                  <Text style={styles.statLabel}>sets done</Text>
+                </View>
+              </View>
+
+              {finishSummary.caloriesBurned == null ? (
+                <Text style={styles.statsHint}>
+                  Add your weight and body fat % under Progress to see calories burned.
+                </Text>
+              ) : null}
+
+              <TouchableOpacity
+                style={styles.overlayPrimaryButton}
+                activeOpacity={0.85}
+                onPress={closeFinishSummary}
+              >
+                <Text style={styles.overlayPrimaryButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
+        <ExercisePickerModal
+          visible={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          existingIds={existingIds}
+          onPick={(exercise) => {
+            addExerciseToActiveWorkout(exercise);
+            setPickerOpen(false);
+          }}
+        />
       </View>
         <InputAccessoryView nativeID={KBD_ID}>
           <View style={styles.kbdBar}>
@@ -445,6 +719,14 @@ const styles = StyleSheet.create({
   exerciseHeaderText: {
     flex: 1,
   },
+  removeExerciseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: COLORS.dangerSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   exerciseName: {
     color: COLORS.textPrimary,
     fontSize: 20,
@@ -532,6 +814,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  addExerciseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: COLORS.accentSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.25)',
+    borderRadius: 16,
+    paddingVertical: 14,
+  },
+  addExerciseButtonText: {
+    color: COLORS.accent,
+    fontSize: 14,
+    fontWeight: '800',
+  },
   emptyWrap: {
     flex: 1,
     backgroundColor: COLORS.bg,
@@ -557,54 +855,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   overlay: {
-  position: 'absolute',
-  top: 0,
-  right: 0,
-  bottom: 0,
-  left: 0,
-  backgroundColor: COLORS.overlay,
-  justifyContent: 'center',
-  alignItems: 'center',
-  paddingHorizontal: 20,
-  paddingVertical: 24,
-},
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: COLORS.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
   overlayCard: {
-  width: '100%',
-  maxWidth: 360,
-  backgroundColor: COLORS.surface,
-  borderWidth: 1,
-  borderColor: COLORS.border,
-  borderRadius: 24,
-  paddingHorizontal: 20,
-  paddingTop: 22,
-  paddingBottom: 18,
-  alignItems: 'center',
-},
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 18,
+    alignItems: 'center',
+  },
   overlayEmoji: {
-  fontSize: 32,
-  marginBottom: 8,
-},
+    fontSize: 32,
+    marginBottom: 8,
+  },
   overlayTitle: {
-  color: COLORS.textPrimary,
-  fontSize: 21,
-  fontWeight: '800',
-  marginBottom: 8,
-  textAlign: 'center',
-},
+    color: COLORS.textPrimary,
+    fontSize: 21,
+    fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   overlayText: {
-  color: COLORS.textSecondary,
-  fontSize: 14,
-  lineHeight: 20,
-  textAlign: 'center',
-  marginBottom: 18,
-  paddingHorizontal: 4,
-},
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 18,
+    paddingHorizontal: 4,
+  },
   overlayActions: {
-  width: '100%',
-  flexDirection: 'row',
-  gap: 10,
-  alignItems: 'center',
-},
+    width: '100%',
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
   leaveActionsStack: {
     width: '100%',
     gap: 10,
@@ -617,13 +915,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   overlaySecondaryButtonHalf: {
-  flex: 1,
-  backgroundColor: COLORS.surfaceElevated,
-  borderRadius: 16,
-  paddingVertical: 13,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
+    flex: 1,
+    backgroundColor: COLORS.surfaceElevated,
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   overlaySecondaryButtonText: {
     color: COLORS.textPrimary,
     fontSize: 14,
@@ -637,18 +935,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   overlayPrimaryButtonHalf: {
-  flex: 1,
-  backgroundColor: COLORS.accent,
-  borderRadius: 16,
-  paddingVertical: 13,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
+    flex: 1,
+    backgroundColor: COLORS.accent,
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   overlayPrimaryButtonText: {
-  color: '#07110A',
-  fontSize: 14,
-  fontWeight: '800',
-},
+    color: '#07110A',
+    fontSize: 14,
+    fontWeight: '800',
+  },
   overlayDangerButton: {
     width: '100%',
     backgroundColor: COLORS.dangerSoft,
@@ -656,10 +954,183 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: 'center',
   },
+  overlayDangerButtonHalf: {
+    flex: 1,
+    backgroundColor: COLORS.dangerSoft,
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   overlayDangerButtonText: {
     color: COLORS.danger,
     fontSize: 14,
     fontWeight: '700',
+  },
+  statsGrid: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 14,
+  },
+  statTile: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    backgroundColor: COLORS.surfaceElevated,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  statValue: {
+    color: COLORS.textPrimary,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  statLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  statsHint: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 14,
+    paddingHorizontal: 8,
+  },
+  pickerSafe: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+  pickerTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  pickerCloseBtn: {
+    backgroundColor: COLORS.surfaceElevated,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  pickerCloseBtnText: {
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pickerSearchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    gap: 8,
+  },
+  pickerSearchInput: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    paddingVertical: 12,
+    paddingRight: 12,
+  },
+  pickerTabsWrap: {
+    height: 46,
+    marginBottom: 6,
+  },
+  pickerTabsContent: {
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    height: 46,
+  },
+  pickerTab: {
+    height: 32,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginRight: 8,
+  },
+  pickerTabActive: {
+    backgroundColor: COLORS.accentSoft,
+    borderColor: COLORS.accent,
+  },
+  pickerTabText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pickerTabTextActive: {
+    color: COLORS.accent,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  pickerRowInfo: {
+    flex: 1,
+  },
+  pickerRowName: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  pickerRowMeta: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+  },
+  pickerAddBtn: {
+    backgroundColor: COLORS.accentSoft,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  pickerAddBtnText: {
+    color: COLORS.accent,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pickerAddedBtn: {
+    backgroundColor: COLORS.surfaceElevated,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  pickerAddedBtnText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pickerEmpty: {
+    paddingVertical: 60,
+    alignItems: 'center',
+  },
+  pickerEmptyText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
   },
   kbdBar: {
     backgroundColor: '#1C1E27',

@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Circle, Line, Polyline, Svg } from 'react-native-svg';
+import { Circle, Line, Polygon, Polyline, Svg } from 'react-native-svg';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { useNutrition } from '../../context/NutritionContext';
 import { useWorkout } from '../../context/WorkoutContext';
@@ -30,7 +30,6 @@ import {
   type ChartPoint,
   type Insight,
   type StrengthBenchmark,
-  weeklyFrequencyChartData,
   weeklyVolumeChartData,
 } from '../../utils/analytics';
 
@@ -38,7 +37,6 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const Y_AXIS_W = 38;
 const CHART_INNER = SCREEN_WIDTH - 72;
 const CHART_SVG_W = CHART_INNER - Y_AXIS_W;
-const BAR_H = 120;
 const LINE_H = 120;
 const KBD_ID = 'progress-log-kbd';
 
@@ -117,60 +115,7 @@ function bfCategory(bf: number, g: 'male' | 'female'): string {
 
 // ─── Chart primitives ─────────────────────────────────────────────────────────
 
-function BarChart({ data, color, yUnit = '' }: { data: ChartPoint[]; color: string; yUnit?: string }) {
-  if (!data.length) return null;
-  const max = Math.max(...data.map((d) => d.y), 1);
-  const mid = max / 2;
-  const LBL_H = 16; // x-label row height
-  return (
-    <View style={bs.wrap}>
-      <View style={bs.row}>
-        {/* Y-axis */}
-        <View style={[bs.yAxis, { height: BAR_H }]}>
-          <Text style={bs.yLbl}>{fmtY(max, yUnit)}</Text>
-          <Text style={bs.yLbl}>{fmtY(mid, yUnit)}</Text>
-          <Text style={bs.yLbl}>0</Text>
-        </View>
-        {/* Bar area */}
-        <View style={bs.barArea}>
-          {/* Grid lines */}
-          <View style={[bs.grid, { top: 0 }]} />
-          <View style={[bs.grid, { top: BAR_H / 2 }]} />
-          <View style={[bs.grid, { top: BAR_H }]} />
-          {/* Bars + x-labels */}
-          <View style={[bs.bars, { height: BAR_H + LBL_H }]}>
-            {data.map((pt, i) => (
-              <View key={i} style={bs.col}>
-                <View style={bs.track}>
-                  <View
-                    style={[bs.fill, { height: `${Math.max((pt.y / max) * 100, 4)}%`, backgroundColor: color }]}
-                  />
-                </View>
-                <Text style={bs.lbl} numberOfLines={1}>{pt.x}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-const bs = StyleSheet.create({
-  wrap:    { paddingHorizontal: 16, paddingBottom: 12 },
-  row:     { flexDirection: 'row', alignItems: 'flex-start' },
-  yAxis:   { width: Y_AXIS_W, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 6 },
-  yLbl:    { color: C.textMuted, fontSize: 9, lineHeight: 12 },
-  barArea: { flex: 1, position: 'relative' },
-  grid:    { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: C.border },
-  bars:    { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
-  col:     { flex: 1, alignItems: 'center' },
-  track:   { flex: 1, width: '100%', justifyContent: 'flex-end', marginBottom: 4 },
-  fill:    { width: '100%', borderRadius: 3, minHeight: 4 },
-  lbl:     { color: C.textMuted, fontSize: 8, textAlign: 'center', height: 16 },
-});
-
-function LineChart({ data, color, yUnit = '' }: { data: ChartPoint[]; color: string; yUnit?: string }) {
+function LineChart({ data, color, yUnit = '', fill = false }: { data: ChartPoint[]; color: string; yUnit?: string; fill?: boolean }) {
   if (data.length < 2) return null;
   const w = CHART_SVG_W, h = LINE_H, pad = 8;
   const ys = data.map((d) => d.y);
@@ -206,6 +151,14 @@ function LineChart({ data, color, yUnit = '' }: { data: ChartPoint[]; color: str
           <Line x1={0} y1={yTop}  x2={w} y2={yTop}  stroke={C.border} strokeWidth="1" />
           <Line x1={0} y1={yMid}  x2={w} y2={yMid}  stroke={C.border} strokeWidth="1" />
           <Line x1={0} y1={yBot}  x2={w} y2={yBot}  stroke={C.border} strokeWidth="1" />
+          {/* Filled area under the line */}
+          {fill ? (
+            <Polygon
+              points={`${pts[0].x},${yBot} ${pts.map((p) => `${p.x},${p.y}`).join(' ')} ${pts[pts.length - 1].x},${yBot}`}
+              fill={color}
+              fillOpacity={0.15}
+            />
+          ) : null}
           {/* Line + dots */}
           <Polyline
             points={pts.map((p) => `${p.x},${p.y}`).join(' ')}
@@ -660,7 +613,6 @@ export default function ProgressScreen() {
   const benchmarks    = bodyweight ? getStrengthBenchmarks(completedWorkouts, bodyweight) : [];
 
   const volumeData   = weeklyVolumeChartData(completedWorkouts);
-  const freqData     = weeklyFrequencyChartData(completedWorkouts);
   const bwData       = bodyweightChartData(entries);
   const bfData       = bodyFatChartData(entries);
   const strengthData = resolvedExId ? exerciseStrengthChartData(completedWorkouts, resolvedExId) : [];
@@ -864,15 +816,8 @@ export default function ProgressScreen() {
             <View style={s.chartCard}>
               <Text style={s.chartTitle}>Weekly volume (kg × reps)</Text>
               {volumeData.length >= 2
-                ? <BarChart data={volumeData} color={C.accent} yUnit="" />
+                ? <LineChart data={volumeData} color={C.accent} yUnit="" fill />
                 : <Text style={s.chartEmpty}>Train across multiple weeks to see volume trends.</Text>}
-            </View>
-
-            <View style={s.chartCard}>
-              <Text style={s.chartTitle}>Sessions per week</Text>
-              {freqData.length >= 2
-                ? <BarChart data={freqData} color={C.blue} yUnit="" />
-                : <Text style={s.chartEmpty}>Train across multiple weeks to see frequency.</Text>}
             </View>
 
             {topExercises.length > 0 && (

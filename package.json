@@ -7,6 +7,7 @@
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "deploy:iphone": "xcodebuild -workspace ios/gymbro.xcworkspace -scheme gymbro -configuration Release -destination 'id=00008120-000628690C10201E' -derivedDataPath ios/build -allowProvisioningUpdates CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=8ZNZU62L5Y build && xcrun devicectl device install app --device 00008120-000628690C10201E \"$(ls -d ios/build/Build/Products/Release-iphoneos/*.app | head -1)\"",
     "web": "expo start --web",
     "lint": "expo lint"
   },

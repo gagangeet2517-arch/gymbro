@@ -1,4 +1,19 @@
 import * as ImageManipulator from 'expo-image-manipulator';
+import { loadUserGeminiKey } from './userApiKey';
+
+// Resolve the Gemini keys to try, in priority order: the tester's own key first
+// (so the shared/dev key isn't used), then the EXPO_PUBLIC env fallbacks.
+async function resolveGeminiKeys(): Promise<string[]> {
+  const userKey = await loadUserGeminiKey();
+  const keys = [
+    userKey,
+    process.env.EXPO_PUBLIC_GOOGLE_AI_KEY,
+    process.env.EXPO_PUBLIC_GOOGLE_AI_KEY_2,
+    process.env.EXPO_PUBLIC_GOOGLE_AI_KEY_3,
+  ].filter((k): k is string => !!k && k.trim().length > 0);
+  // De-dupe in case the user pasted the same key that's already in env.
+  return Array.from(new Set(keys));
+}
 
 export type FoodItem = {
   name: string;
@@ -223,35 +238,32 @@ async function analyzeWithOpenRouter(base64: string, key: string, hint?: string)
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function analyzeFoodPhoto(imageUri: string, hint?: string): Promise<FoodVisionResult> {
-  const geminiKey1 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY;
-  if (!geminiKey1) throw new FoodVisionError('API key not configured.', 'no_key');
+  const keys = await resolveGeminiKeys();
+  if (keys.length === 0) {
+    throw new FoodVisionError('Add your Google Gemini API key in Profile to use AI features.', 'no_key');
+  }
 
   const base64 = await compressFoodImage(imageUri);
 
-  try {
-    return await analyzeWithGemini(base64, geminiKey1, hint);
-  } catch (err1) {
-    if (!(err1 instanceof FoodVisionError) || err1.code !== 'api_error') throw err1;
-
-    const geminiKey2 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY_2;
-    if (geminiKey2) {
-      try {
-        return await analyzeWithGemini(base64, geminiKey2, hint);
-      } catch { /* fall through */ }
+  let lastApiError: FoodVisionError | null = null;
+  for (const key of keys) {
+    try {
+      return await analyzeWithGemini(base64, key, hint);
+    } catch (err) {
+      // Only an API error is worth retrying with the next key; anything else
+      // (network, timeout, parse) is surfaced to the user immediately.
+      if (err instanceof FoodVisionError && err.code === 'api_error') {
+        lastApiError = err;
+        continue;
+      }
+      throw err;
     }
-
-    const geminiKey3 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY_3;
-    if (geminiKey3) {
-      try {
-        return await analyzeWithGemini(base64, geminiKey3, hint);
-      } catch { /* fall through */ }
-    }
-
-    throw new FoodVisionError(
-      'All AI providers are busy right now. Please wait a moment and try again.',
-      'api_error'
-    );
   }
+
+  throw lastApiError ?? new FoodVisionError(
+    'All AI providers are busy right now. Please wait a moment and try again.',
+    'api_error'
+  );
 }
 
 export function recomputeTotals(items: FoodItem[]): Pick<FoodVisionResult, 'calories' | 'protein_g' | 'carbs_g' | 'fat_g'> {
@@ -286,22 +298,13 @@ async function tryGeminiText(prompt: string, key: string): Promise<string | null
 
 
 export async function queryFoodText(prompt: string): Promise<string> {
-  const key1 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY;
-  const key2 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY_2;
-
-  if (key1) {
-    const result = await tryGeminiText(prompt, key1);
-    if (result) return result;
+  const keys = await resolveGeminiKeys();
+  if (keys.length === 0) {
+    throw new Error('Add your Google Gemini API key in Profile to use AI features.');
   }
 
-  if (key2) {
-    const result = await tryGeminiText(prompt, key2);
-    if (result) return result;
-  }
-
-  const key3 = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY_3;
-  if (key3) {
-    const result = await tryGeminiText(prompt, key3);
+  for (const key of keys) {
+    const result = await tryGeminiText(prompt, key);
     if (result) return result;
   }
 
