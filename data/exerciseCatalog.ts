@@ -55,6 +55,7 @@ export const builtInExercises: Exercise[] = [
   { id: 'pendlay-row',            name: 'Pendlay Row',                   muscle: 'Upper Back',    equipment: 'Barbell'    },
   { id: 'meadows-row',            name: 'Meadows Row',                   muscle: 'Upper Back',    equipment: 'Barbell'    },
   { id: 'wide-cable-row',         name: 'Wide-Grip Cable Row',           muscle: 'Upper Back',    equipment: 'Cable'      },
+  { id: 'dumbbell-shrug',         name: 'Dumbbell Shrug',                muscle: 'Upper Back',    equipment: 'Dumbbell'   },
 
   // ── Lower Back ─────────────────────────────────────────────────────────────
   { id: 'deadlift',               name: 'Deadlift',                      muscle: 'Lower Back',    equipment: 'Barbell'    },
@@ -101,6 +102,7 @@ export const builtInExercises: Exercise[] = [
   { id: 'ez-bar-curl',            name: 'EZ-Bar Curl',                   muscle: 'Biceps',        equipment: 'EZ-Bar'     },
   { id: 'machine-curl',           name: 'Machine Curl',                  muscle: 'Biceps',        equipment: 'Machine'    },
   { id: 'reverse-curl',           name: 'Reverse Curl',                  muscle: 'Biceps',        equipment: 'Barbell'    },
+  { id: 'close-grip-curl',        name: 'Close-Grip EZ-Bar Curl',        muscle: 'Biceps',        equipment: 'EZ-Bar'     },
 
   // ── Triceps ────────────────────────────────────────────────────────────────
   { id: 'tricep-pushdown',        name: 'Tricep Pushdown',               muscle: 'Triceps',       equipment: 'Cable'      },
