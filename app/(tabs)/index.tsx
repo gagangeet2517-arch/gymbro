@@ -7,6 +7,7 @@ import {
   Alert,
   InputAccessoryView,
   Keyboard,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -33,6 +34,7 @@ import {
   computeGoalTargets,
   computeMaintenanceCal,
 } from '../../utils/nutritionGoals';
+import { loadUserGeminiKey, setUserGeminiKey } from '../../utils/userApiKey';
 
 // Build reverse map: muscle subgroup → main group label (e.g. 'Quads' → 'Legs')
 const MUSCLE_TO_GROUP: Map<string, string> = (() => {
@@ -891,7 +893,7 @@ function StatGrid({
 }) {
   return (
     <View>
-      <Text style={s.sectionLabel}>Today's snapshot</Text>
+      <Text style={s.sectionLabel}>Today&apos;s snapshot</Text>
       <View style={s.statGrid}>
         <View style={s.statCard}>
           <Ionicons name="calendar-outline" size={16} color={C.accent} />
@@ -1199,6 +1201,8 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
   const [selectedGoal, setSelectedGoal] = useState<UserGoal | null>(null);
   const [showCountry,  setShowCountry]  = useState(false);
   const [saveFlash,    setSaveFlash]    = useState(false);
+  const [geminiKeyStr, setGeminiKeyStr] = useState('');
+  const [showKey,      setShowKey]      = useState(false);
 
   // Pre-fill on open; intentionally only fires on visibility change so in-progress edits aren't clobbered
   React.useEffect(() => {
@@ -1208,6 +1212,8 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
       setCountryCode(profile.countryCode);
       setSelectedGoal(profile.goal);
       setSaveFlash(false);
+      setShowKey(false);
+      loadUserGeminiKey().then((k) => setGeminiKeyStr(k ?? ''));
     }
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1218,7 +1224,7 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
     ? computeGoalTargets(selectedGoal, weight, bf)
     : null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     Keyboard.dismiss();
     updateProfile({
       name: nameStr.trim(),
@@ -1229,6 +1235,7 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
     if (selectedGoal && preview) {
       updateTargets(preview);
     }
+    await setUserGeminiKey(geminiKeyStr);
     setSaveFlash(true);
     setTimeout(() => { setSaveFlash(false); onClose(); }, 1200);
   };
@@ -1369,6 +1376,52 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
               </Text>
             </View>
           ) : null}
+
+          {/* ── AI / Gemini API key ── */}
+          <Text style={[ps.sectionLabel, { marginTop: 20 }]}>AI features · Gemini key</Text>
+          <View style={ps.infoCard}>
+            <Text style={ps.keyBlurb}>
+              Photo scan, voice logging and the nutrition coach run on Google Gemini.
+              Paste your own free key so the app uses your quota, not the shared one.
+            </Text>
+            <View style={ps.infoField}>
+              <Text style={ps.fieldLbl}>API key</Text>
+              <View style={ps.keyRow}>
+                <TextInput
+                  style={[ps.input, { flex: 1 }]}
+                  value={geminiKeyStr}
+                  onChangeText={setGeminiKeyStr}
+                  placeholder="AIza…  (leave blank to use shared key)"
+                  placeholderTextColor={C.textMuted}
+                  secureTextEntry={!showKey}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardAppearance="dark"
+                  inputAccessoryViewID={PROFILE_KBD_ID}
+                />
+                <TouchableOpacity
+                  style={ps.keyToggle}
+                  activeOpacity={0.8}
+                  onPress={() => setShowKey((v) => !v)}
+                >
+                  <Ionicons name={showKey ? 'eye-off-outline' : 'eye-outline'} size={18} color={C.textSub} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={ps.keyLinkRow}
+              activeOpacity={0.7}
+              onPress={() => Linking.openURL('https://aistudio.google.com/apikey')}
+            >
+              <Ionicons name="open-outline" size={14} color={C.accent} />
+              <Text style={ps.keyLink}>Get a free key at aistudio.google.com</Text>
+            </TouchableOpacity>
+            <Text style={ps.keyStatus}>
+              {geminiKeyStr.trim()
+                ? '✓ Using your key'
+                : 'Using the shared key (limited during testing)'}
+            </Text>
+          </View>
 
           {/* ── Save button ── */}
           <TouchableOpacity
@@ -1858,6 +1911,17 @@ const ps = StyleSheet.create({
     backgroundColor: C.elevated, borderWidth: 1, borderColor: C.border,
     borderRadius: 14, color: C.text, paddingHorizontal: 13, paddingVertical: 11, fontSize: 15,
   },
+
+  // AI / Gemini key section
+  keyBlurb: { color: C.textSub, fontSize: 12, lineHeight: 18 },
+  keyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  keyToggle: {
+    width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.elevated, borderWidth: 1, borderColor: C.border,
+  },
+  keyLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  keyLink: { color: C.accent, fontSize: 12, fontWeight: '700' },
+  keyStatus: { color: C.textMuted, fontSize: 11, fontWeight: '600' },
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   codeBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

@@ -31,6 +31,8 @@ export type ActiveWorkoutExercise = {
   sets: WorkoutSet[];
   prefilledFromLastWorkout?: boolean;
   lastWorkoutSummary?: LastWorkoutSummary | null;
+  targetSets?: number;
+  targetReps?: string;
 };
 
 export type ActiveWorkout = {
@@ -48,6 +50,15 @@ export type CompletedWorkout = {
   startedAt: string;
   finishedAt: string;
   exercises: ActiveWorkoutExercise[];
+  durationMin?: number;
+  totalVolume?: number;
+  caloriesBurned?: number | null;
+};
+
+export type FinishExtras = {
+  durationMin?: number;
+  totalVolume?: number;
+  caloriesBurned?: number | null;
 };
 
 type WorkoutContextType = {
@@ -67,7 +78,9 @@ type WorkoutContextType = {
     field: 'weight' | 'reps',
     value: string
   ) => void;
-  finishWorkout: () => void;
+  addExerciseToActiveWorkout: (exercise: Exercise) => void;
+  removeExerciseFromActiveWorkout: (exerciseId: string) => void;
+  finishWorkout: (extras?: FinishExtras) => CompletedWorkout | null;
   discardWorkout: () => void;
 };
 
@@ -78,11 +91,11 @@ type PersistedWorkoutState = {
   completedWorkouts: CompletedWorkout[];
 };
 
-function createEmptySet(): WorkoutSet {
+function createEmptySet(repsPrefill?: string): WorkoutSet {
   return {
     id: `${Date.now()}-${Math.random()}`,
     weight: '',
-    reps: '',
+    reps: repsPrefill ?? '',
     done: false,
   };
 }
@@ -96,9 +109,39 @@ function createPrefilledSet(weight: string, reps: string): WorkoutSet {
   };
 }
 
+// Mid-range from "8-12" → "10". Returns trimmed string or '' for invalid input.
+function midpointFromTargetReps(targetReps?: string): string {
+  if (!targetReps) return '';
+  const match = targetReps.match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (match) {
+    const lo = Number(match[1]);
+    const hi = Number(match[2]);
+    if (Number.isFinite(lo) && Number.isFinite(hi)) {
+      return String(Math.round((lo + hi) / 2));
+    }
+  }
+  const single = targetReps.match(/^\s*(\d+)\s*$/);
+  if (single) return single[1];
+  return '';
+}
+
 function toNumber(value: string): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+// Most recent logged sets for an exercise across ALL completed workouts,
+// regardless of which template they came from. completedWorkouts is stored
+// newest-first, so the first match is the latest. Returns null if never done.
+function findLatestExerciseSets(
+  completedWorkouts: CompletedWorkout[],
+  exerciseId: string
+): WorkoutSet[] | null {
+  for (const workout of completedWorkouts) {
+    const match = workout.exercises.find((item) => item.id === exerciseId);
+    if (match && match.sets.length > 0) return match.sets;
+  }
+  return null;
 }
 
 function buildLastWorkoutSummary(sets: WorkoutSet[]): LastWorkoutSummary {
@@ -185,26 +228,44 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     );
 
     const mappedExercises: ActiveWorkoutExercise[] = exercises.map((exercise) => {
-      const previousExercise = latestCompletedForTemplate?.exercises.find(
+      const sameTemplateExercise = latestCompletedForTemplate?.exercises.find(
         (item) => item.id === exercise.id
       );
 
-      const hasPrefill = !!previousExercise && previousExercise.sets.length > 0;
+      // Prefer the same template's last run; otherwise fall back to the most
+      // recent time this exercise was done in any other workout.
+      const prefillSets =
+        sameTemplateExercise && sameTemplateExercise.sets.length > 0
+          ? sameTemplateExercise.sets
+          : findLatestExerciseSets(completedWorkouts, exercise.id);
+      const hasPrefill = !!prefillSets;
 
-      const prefilledSets = hasPrefill
-        ? previousExercise.sets.map((set) => createPrefilledSet(set.weight, set.reps))
-        : [createEmptySet()];
+      let initialSets: WorkoutSet[];
+      if (prefillSets) {
+        initialSets = prefillSets.map((set) =>
+          createPrefilledSet(set.weight, set.reps)
+        );
+      } else if (exercise.targetSets && exercise.targetSets > 0) {
+        const repsPrefill = midpointFromTargetReps(exercise.targetReps);
+        initialSets = Array.from({ length: exercise.targetSets }, () =>
+          createEmptySet(repsPrefill)
+        );
+      } else {
+        initialSets = [createEmptySet()];
+      }
 
       return {
         id: exercise.id,
         name: exercise.name,
         muscle: exercise.muscle,
         equipment: exercise.equipment,
-        sets: prefilledSets,
+        sets: initialSets,
         prefilledFromLastWorkout: hasPrefill,
-        lastWorkoutSummary: hasPrefill
-          ? buildLastWorkoutSummary(previousExercise.sets)
+        lastWorkoutSummary: prefillSets
+          ? buildLastWorkoutSummary(prefillSets)
           : null,
+        targetSets: exercise.targetSets,
+        targetReps: exercise.targetReps,
       };
     });
 
@@ -296,7 +357,59 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const finishWorkout = () => {
+  const addExerciseToActiveWorkout = (exercise: Exercise) => {
+    setActiveWorkout((prev) => {
+      if (!prev) return prev;
+      if (prev.exercises.some((e) => e.id === exercise.id)) return prev;
+
+      const sameTemplateMatch = completedWorkouts
+        .find((w) => w.templateId === prev.templateId)
+        ?.exercises.find((e) => e.id === exercise.id);
+
+      // Same-template last run first, then the most recent time it was done anywhere.
+      const prefillSets =
+        sameTemplateMatch && sameTemplateMatch.sets.length > 0
+          ? sameTemplateMatch.sets
+          : findLatestExerciseSets(completedWorkouts, exercise.id);
+      const hasPrefill = !!prefillSets;
+      const initialSets: WorkoutSet[] = prefillSets
+        ? prefillSets.map((s) => createPrefilledSet(s.weight, s.reps))
+        : exercise.targetSets && exercise.targetSets > 0
+        ? Array.from({ length: exercise.targetSets }, () =>
+            createEmptySet(midpointFromTargetReps(exercise.targetReps))
+          )
+        : [createEmptySet()];
+
+      const newExercise: ActiveWorkoutExercise = {
+        id: exercise.id,
+        name: exercise.name,
+        muscle: exercise.muscle,
+        equipment: exercise.equipment,
+        sets: initialSets,
+        prefilledFromLastWorkout: hasPrefill,
+        lastWorkoutSummary: prefillSets
+          ? buildLastWorkoutSummary(prefillSets)
+          : null,
+        targetSets: exercise.targetSets,
+        targetReps: exercise.targetReps,
+      };
+
+      return { ...prev, exercises: [...prev.exercises, newExercise] };
+    });
+  };
+
+  const removeExerciseFromActiveWorkout = (exerciseId: string) => {
+    setActiveWorkout((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        exercises: prev.exercises.filter((e) => e.id !== exerciseId),
+      };
+    });
+  };
+
+  const finishWorkout = (extras?: FinishExtras): CompletedWorkout | null => {
+    let saved: CompletedWorkout | null = null;
     setActiveWorkout((prev) => {
       if (!prev) return prev;
 
@@ -307,11 +420,16 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         startedAt: prev.startedAt,
         finishedAt: new Date().toISOString(),
         exercises: prev.exercises,
+        durationMin: extras?.durationMin,
+        totalVolume: extras?.totalVolume,
+        caloriesBurned: extras?.caloriesBurned ?? null,
       };
 
+      saved = completedWorkout;
       setCompletedWorkouts((existing) => [completedWorkout, ...existing]);
       return null;
     });
+    return saved;
   };
 
   const discardWorkout = () => {
@@ -328,6 +446,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         removeSetFromExercise,
         toggleSetDone,
         updateSetField,
+        addExerciseToActiveWorkout,
+        removeExerciseFromActiveWorkout,
         finishWorkout,
         discardWorkout,
       }}

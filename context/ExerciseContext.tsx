@@ -15,6 +15,8 @@ export type Exercise = {
   muscle: string;
   equipment: string;
   isCustom?: boolean;
+  targetSets?: number;
+  targetReps?: string;
 };
 
 type ExerciseContextType = {

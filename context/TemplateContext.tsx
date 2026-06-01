@@ -6,8 +6,9 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { getStarterTemplates } from '../data/exerciseCatalog';
+import { getStarterTemplates, StarterGoal } from '../data/exerciseCatalog';
 import { Exercise } from './ExerciseContext';
+import { useUserProfile } from './UserProfileContext';
 
 const STORAGE_KEY = 'gymbro_templates';
 
@@ -30,6 +31,7 @@ type TemplateContextType = {
   deleteTemplate: (id: string) => void;
   moveTemplateUp: (id: string) => void;
   moveTemplateDown: (id: string) => void;
+  refreshStartersForGoal: (goal: StarterGoal | null) => void;
 };
 
 const TemplateContext = createContext<TemplateContextType | null>(null);
@@ -37,6 +39,7 @@ const TemplateContext = createContext<TemplateContextType | null>(null);
 export function TemplateProvider({ children }: { children: ReactNode }) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [hasHydrated, setHasHydrated] = useState(false);
+  const { goal } = useUserProfile();
 
   useEffect(() => {
     let isMounted = true;
@@ -45,7 +48,7 @@ export function TemplateProvider({ children }: { children: ReactNode }) {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
 
-        const starterTemplates: Template[] = getStarterTemplates().map((template) => ({
+        const starterTemplates: Template[] = getStarterTemplates(goal).map((template) => ({
           ...template,
           isStarter: true,
         }));
@@ -80,7 +83,7 @@ export function TemplateProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Failed to load templates:', error);
 
-        const fallbackTemplates: Template[] = getStarterTemplates().map((template) => ({
+        const fallbackTemplates: Template[] = getStarterTemplates(goal).map((template) => ({
           ...template,
           isStarter: true,
         }));
@@ -97,7 +100,17 @@ export function TemplateProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const refreshStartersForGoal = (nextGoal: StarterGoal | null) => {
+    const fresh = getStarterTemplates(nextGoal).map((t) => ({ ...t, isStarter: true }));
+    const freshById = new Map(fresh.map((t) => [t.id, t]));
+    setTemplates((prev) => {
+      const customs = prev.filter((t) => !freshById.has(t.id));
+      return [...fresh, ...customs];
+    });
+  };
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -176,6 +189,7 @@ export function TemplateProvider({ children }: { children: ReactNode }) {
         deleteTemplate,
         moveTemplateUp,
         moveTemplateDown,
+        refreshStartersForGoal,
       }}
     >
       {children}

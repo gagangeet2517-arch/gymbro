@@ -44,6 +44,7 @@ import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { DailyTargets, MealEntry, SavedFoodItem, useNutrition } from '../../context/NutritionContext';
 import { formatDayLabel, toDateKey } from '../../utils/dateHelpers';
 import { FoodItem, FoodVisionError, FoodVisionResult, analyzeFoodPhoto, queryFoodText, recomputeTotals } from '../../utils/foodVision';
+import { loadUserGeminiKey } from '../../utils/userApiKey';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -1362,10 +1363,15 @@ export default function NutritionScreen() {
   const [tipLoading,     setTipLoading]     = useState(false);
   const [actionMeal,     setActionMeal]     = useState<MealEntry | null>(null);
   const [editingMealId,  setEditingMealId]  = useState<string | null>(null);
+  const [pendingLateNight, setPendingLateNight] = useState<{
+    entry: Omit<MealEntry, 'id' | 'loggedAt'>;
+    editingMealId: string | null;
+  } | null>(null);
   const tipFetched = useRef(false);
 
   const fetchTip = async () => {
-    const geminiKey = process.env.EXPO_PUBLIC_GOOGLE_AI_KEY;
+    // Tester's own key takes priority over the shared/dev env key.
+    const geminiKey = (await loadUserGeminiKey()) || process.env.EXPO_PUBLIC_GOOGLE_AI_KEY;
     const openAIKey = process.env.EXPO_PUBLIC_OPENROUTER_KEY;
     if (!geminiKey && !openAIKey) return;
     setTipLoading(true);
@@ -1566,7 +1572,7 @@ export default function NutritionScreen() {
         {/* Header */}
         <View style={s.header}>
           <Text style={s.eyebrow}>Nutrition</Text>
-          <Text style={s.title}>Today's intake</Text>
+          <Text style={s.title}>Today&apos;s intake</Text>
         </View>
 
         {/* Daily Totals Card */}
@@ -1693,12 +1699,19 @@ export default function NutritionScreen() {
         error={reviewError}
         imageUri={reviewImageUri}
         onSave={(entry) => {
-          if (editingMealId) {
-            deleteMeal(editingMealId);
+          const editingSnapshot = editingMealId;
+          if (editingSnapshot) {
+            deleteMeal(editingSnapshot);
             setEditingMealId(null);
           }
-          addMeal(entry);
           setBarcodeResult(null);
+
+          if (new Date().getHours() < 4) {
+            setPendingLateNight({ entry, editingMealId: editingSnapshot });
+            return;
+          }
+
+          addMeal(entry);
         }}
         onClose={() => {
           setShowReview(false);
@@ -1727,6 +1740,55 @@ export default function NutritionScreen() {
         }}
         onClose={() => setActionMeal(null)}
       />
+
+      <Modal
+        visible={pendingLateNight !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (pendingLateNight) {
+            addMeal(pendingLateNight.entry);
+            setPendingLateNight(null);
+          }
+        }}
+      >
+        <View style={s.lateNightBackdrop}>
+          <View style={s.lateNightCard}>
+            <Text style={s.lateNightEmoji}>🌙</Text>
+            <Text style={s.lateNightTitle}>It&apos;s past midnight</Text>
+            <Text style={s.lateNightBody}>
+              Should this meal count toward yesterday or today?
+            </Text>
+
+            <TouchableOpacity
+              style={s.lateNightPrimaryBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                if (!pendingLateNight) return;
+                const y = new Date();
+                y.setDate(y.getDate() - 1);
+                y.setHours(23, 30, 0, 0);
+                addMeal(pendingLateNight.entry, y.toISOString());
+                setPendingLateNight(null);
+              }}
+            >
+              <Text style={s.lateNightPrimaryBtnText}>Log to Yesterday</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={s.lateNightSecondaryBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                if (!pendingLateNight) return;
+                addMeal(pendingLateNight.entry);
+                setPendingLateNight(null);
+              }}
+            >
+              <Text style={s.lateNightSecondaryBtnText}>Log to Today</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -2142,4 +2204,66 @@ const s = StyleSheet.create({
     paddingHorizontal: 4,
   },
   voiceErrorText: { color: C.red, fontSize: 12, fontWeight: '600', paddingHorizontal: 4 },
+
+  lateNightBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  lateNightCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 18,
+    alignItems: 'center',
+    gap: 12,
+  },
+  lateNightEmoji: {
+    fontSize: 36,
+  },
+  lateNightTitle: {
+    color: C.text,
+    fontSize: 21,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  lateNightBody: {
+    color: C.textSub,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 6,
+    paddingHorizontal: 4,
+  },
+  lateNightPrimaryBtn: {
+    width: '100%',
+    backgroundColor: C.accent,
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  lateNightPrimaryBtnText: {
+    color: '#07110A',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  lateNightSecondaryBtn: {
+    width: '100%',
+    backgroundColor: C.elevated,
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  lateNightSecondaryBtnText: {
+    color: C.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });

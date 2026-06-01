@@ -10,7 +10,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExercises } from '../../context/ExerciseContext';
 import { Template, useTemplates } from '../../context/TemplateContext';
+import { useUserProfile } from '../../context/UserProfileContext';
 import { useWorkout } from '../../context/WorkoutContext';
+import { GOAL_META } from '../../utils/nutritionGoals';
 import { generateSuggestions, type Suggestion } from '../../utils/suggestions';
 
 const COLORS = {
@@ -53,13 +55,16 @@ export default function WorkoutsScreen() {
     deleteTemplate,
     moveTemplateUp,
     moveTemplateDown,
+    refreshStartersForGoal,
   } = useTemplates();
   const { clearTemplateExercises, setTemplateExercises } = useExercises();
   const { startWorkoutFromTemplate, activeWorkout, completedWorkouts } = useWorkout();
+  const { goal } = useUserProfile();
 
   const [templateToDeleteId, setTemplateToDeleteId] = useState<string | null>(null);
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [suggestionsTarget, setSuggestionsTarget] = useState<Template | null>(null);
+  const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
 
   const handleStartTemplate = (template: Template) => {
     const hasHistory = completedWorkouts.some((w) => w.templateId === template.id);
@@ -200,6 +205,24 @@ export default function WorkoutsScreen() {
             </TouchableOpacity>
           ) : null}
         </View>
+
+        {goal && !isReorderMode ? (
+          <TouchableOpacity
+            style={styles.goalRefreshCard}
+            activeOpacity={0.85}
+            onPress={() => setShowRefreshConfirm(true)}
+          >
+            <View style={styles.goalRefreshTextWrap}>
+              <Text style={styles.goalRefreshLabel}>
+                Goal: {GOAL_META[goal].label}
+              </Text>
+              <Text style={styles.goalRefreshSubtext}>
+                Refresh starter templates with sets and reps tuned for this goal.
+              </Text>
+            </View>
+            <Text style={styles.goalRefreshAction}>Refresh</Text>
+          </TouchableOpacity>
+        ) : null}
 
         {templateCards.map((template, index) => {
           const sourceTemplate = template.originalTemplate;
@@ -355,12 +378,45 @@ export default function WorkoutsScreen() {
         </View>
       ) : null}
 
+      {/* Refresh starters confirmation */}
+      {showRefreshConfirm && goal ? (
+        <View style={styles.overlay}>
+          <View style={styles.overlayCard}>
+            <Text style={styles.overlayEmoji}>🔄</Text>
+            <Text style={styles.overlayTitle}>Refresh starter templates?</Text>
+            <Text style={styles.overlayText}>
+              The Push, Pull, Leg, and Upper templates will be re-tuned for {GOAL_META[goal].label}.
+              Your own custom templates won&apos;t be touched.
+            </Text>
+            <View style={styles.overlayActions}>
+              <TouchableOpacity
+                style={styles.overlaySecondaryButton}
+                activeOpacity={0.85}
+                onPress={() => setShowRefreshConfirm(false)}
+              >
+                <Text style={styles.overlaySecondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.overlayCTAButton}
+                activeOpacity={0.85}
+                onPress={() => {
+                  refreshStartersForGoal(goal);
+                  setShowRefreshConfirm(false);
+                }}
+              >
+                <Text style={styles.overlayCTAButtonText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      ) : null}
+
       {/* Suggestions overlay */}
       {suggestionsTarget ? (
         <View style={styles.overlay}>
           <View style={styles.suggestionsCard}>
             <Text style={styles.overlayEmoji}>💡</Text>
-            <Text style={styles.overlayTitle}>Today's game plan</Text>
+            <Text style={styles.overlayTitle}>Today&apos;s game plan</Text>
             <Text style={styles.suggestionsSubtitle}>
               Based on your last {suggestionsTarget.name} session
             </Text>
@@ -579,6 +635,39 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   doneReorderPillText: {
+    color: COLORS.accent,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  goalRefreshCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    backgroundColor: COLORS.accentSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.25)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
+  },
+  goalRefreshTextWrap: {
+    flex: 1,
+  },
+  goalRefreshLabel: {
+    color: COLORS.accent,
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  goalRefreshSubtext: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  goalRefreshAction: {
     color: COLORS.accent,
     fontSize: 13,
     fontWeight: '800',

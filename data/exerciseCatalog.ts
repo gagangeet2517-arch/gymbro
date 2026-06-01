@@ -55,6 +55,7 @@ export const builtInExercises: Exercise[] = [
   { id: 'pendlay-row',            name: 'Pendlay Row',                   muscle: 'Upper Back',    equipment: 'Barbell'    },
   { id: 'meadows-row',            name: 'Meadows Row',                   muscle: 'Upper Back',    equipment: 'Barbell'    },
   { id: 'wide-cable-row',         name: 'Wide-Grip Cable Row',           muscle: 'Upper Back',    equipment: 'Cable'      },
+  { id: 'dumbbell-shrug',         name: 'Dumbbell Shrug',                muscle: 'Upper Back',    equipment: 'Dumbbell'   },
 
   // ── Lower Back ─────────────────────────────────────────────────────────────
   { id: 'deadlift',               name: 'Deadlift',                      muscle: 'Lower Back',    equipment: 'Barbell'    },
@@ -101,6 +102,7 @@ export const builtInExercises: Exercise[] = [
   { id: 'ez-bar-curl',            name: 'EZ-Bar Curl',                   muscle: 'Biceps',        equipment: 'EZ-Bar'     },
   { id: 'machine-curl',           name: 'Machine Curl',                  muscle: 'Biceps',        equipment: 'Machine'    },
   { id: 'reverse-curl',           name: 'Reverse Curl',                  muscle: 'Biceps',        equipment: 'Barbell'    },
+  { id: 'close-grip-curl',        name: 'Close-Grip EZ-Bar Curl',        muscle: 'Biceps',        equipment: 'EZ-Bar'     },
 
   // ── Triceps ────────────────────────────────────────────────────────────────
   { id: 'tricep-pushdown',        name: 'Tricep Pushdown',               muscle: 'Triceps',       equipment: 'Cable'      },
@@ -205,41 +207,223 @@ export const builtInExercises: Exercise[] = [
   { id: 'man-maker',              name: 'Man Maker',                     muscle: 'Full Body',     equipment: 'Dumbbell'   },
 ];
 
-function pick(...ids: string[]): Exercise[] {
-  return ids
-    .map((id) => builtInExercises.find((e) => e.id === id))
-    .filter((e): e is Exercise => !!e);
+type TargetTuple = [id: string, sets: number, reps: string];
+
+export type StarterGoal = 'fat_loss' | 'lean_bulk' | 'maintenance' | 'recomp';
+
+function pickWithTargets(items: TargetTuple[]): Exercise[] {
+  const result: Exercise[] = [];
+  for (const [id, sets, reps] of items) {
+    const exercise = builtInExercises.find((e) => e.id === id);
+    if (!exercise) continue;
+    result.push({ ...exercise, targetSets: sets, targetReps: reps });
+  }
+  return result;
 }
 
-export function getStarterTemplates() {
+const GOAL_NOTES: Record<StarterGoal, { push: string; pull: string; legs: string; upper: string }> = {
+  fat_loss: {
+    push: 'Higher reps + finisher · chest, shoulders, triceps.',
+    pull: 'Higher reps + finisher · back, rear delts, biceps.',
+    legs: 'Higher reps · quads, hamstrings, calves.',
+    upper: 'Pump-focused upper body session.',
+  },
+  lean_bulk: {
+    push: 'Heavy compounds first · low rep, high load.',
+    pull: 'Heavy pulls · build mass in back and biceps.',
+    legs: 'Heavy lower body · squat and RDL focus.',
+    upper: 'Heavy upper compounds for size.',
+  },
+  maintenance: {
+    push: 'Balanced push session · chest, shoulders, triceps.',
+    pull: 'Balanced pull session · back, rear delts, biceps.',
+    legs: 'Balanced leg session · quads, hamstrings, calves.',
+    upper: 'Balanced full upper body.',
+  },
+  recomp: {
+    push: 'High volume + moderate load · build muscle while leaning out.',
+    pull: 'High volume pulls for back and arms.',
+    legs: 'High volume legs · quads, hamstrings, calves.',
+    upper: 'High volume upper · maintain strength while cutting fat.',
+  },
+};
+
+const GOAL_TEMPLATES: Record<StarterGoal, {
+  push: TargetTuple[];
+  pull: TargetTuple[];
+  legs: TargetTuple[];
+  upper: TargetTuple[];
+}> = {
+  fat_loss: {
+    push: [
+      ['bench-press', 3, '12-15'],
+      ['incline-db-press', 3, '12-15'],
+      ['cable-crossover', 3, '12-15'],
+      ['cable-lateral-raise', 3, '15'],
+      ['tricep-pushdown', 3, '12-15'],
+      ['burpee', 2, '30'],
+    ],
+    pull: [
+      ['lat-pulldown', 3, '12-15'],
+      ['seated-cable-row', 3, '12-15'],
+      ['face-pull', 3, '15'],
+      ['cable-curl', 3, '12-15'],
+      ['hammer-curl', 3, '12-15'],
+      ['kb-swing', 2, '20'],
+    ],
+    legs: [
+      ['leg-press', 3, '12-15'],
+      ['romanian-deadlift', 3, '12-15'],
+      ['leg-extension', 3, '15'],
+      ['leg-curl', 3, '15'],
+      ['walking-lunge', 3, '12'],
+      ['standing-calf-raise', 3, '15'],
+    ],
+    upper: [
+      ['lat-pulldown', 3, '12-15'],
+      ['machine-chest-press', 3, '12-15'],
+      ['cable-lateral-raise', 3, '15'],
+      ['cable-curl', 3, '12-15'],
+      ['tricep-pushdown', 3, '12-15'],
+      ['face-pull', 3, '15'],
+    ],
+  },
+  lean_bulk: {
+    push: [
+      ['bench-press', 4, '6-8'],
+      ['overhead-press', 4, '6-8'],
+      ['incline-db-press', 3, '8-10'],
+      ['db-fly', 3, '10-12'],
+      ['close-grip-bench', 3, '8-10'],
+      ['tricep-pushdown', 3, '10-12'],
+    ],
+    pull: [
+      ['deadlift', 4, '5'],
+      ['barbell-row', 4, '6-8'],
+      ['pull-up', 3, '6-10'],
+      ['barbell-curl', 3, '8-10'],
+      ['hammer-curl', 3, '10'],
+      ['face-pull', 3, '12-15'],
+    ],
+    legs: [
+      ['back-squat', 4, '5-8'],
+      ['romanian-deadlift', 4, '6-8'],
+      ['leg-press', 3, '8-10'],
+      ['leg-curl', 3, '10'],
+      ['standing-calf-raise', 4, '10-12'],
+      ['walking-lunge', 3, '10'],
+    ],
+    upper: [
+      ['bench-press', 4, '6-8'],
+      ['barbell-row', 4, '6-8'],
+      ['overhead-press', 3, '8-10'],
+      ['pull-up', 3, '6-10'],
+      ['barbell-curl', 3, '8-10'],
+      ['close-grip-bench', 3, '8-10'],
+    ],
+  },
+  maintenance: {
+    push: [
+      ['bench-press', 3, '8-12'],
+      ['incline-db-press', 3, '8-12'],
+      ['machine-chest-press', 3, '8-12'],
+      ['cable-lateral-raise', 3, '12'],
+      ['overhead-press', 3, '8-12'],
+      ['tricep-pushdown', 3, '10-12'],
+    ],
+    pull: [
+      ['barbell-row', 3, '8-12'],
+      ['lat-pulldown', 3, '8-12'],
+      ['seated-cable-row', 3, '8-12'],
+      ['face-pull', 3, '12-15'],
+      ['barbell-curl', 3, '10'],
+      ['hammer-curl', 3, '10-12'],
+    ],
+    legs: [
+      ['back-squat', 3, '8-10'],
+      ['leg-press', 3, '10-12'],
+      ['romanian-deadlift', 3, '8-10'],
+      ['leg-curl', 3, '10-12'],
+      ['leg-extension', 3, '12'],
+      ['standing-calf-raise', 3, '12-15'],
+    ],
+    upper: [
+      ['bench-press', 3, '8-12'],
+      ['barbell-row', 3, '8-12'],
+      ['overhead-press', 3, '8-10'],
+      ['lat-pulldown', 3, '8-12'],
+      ['tricep-pushdown', 3, '10-12'],
+      ['barbell-curl', 3, '10-12'],
+    ],
+  },
+  recomp: {
+    push: [
+      ['bench-press', 4, '8-10'],
+      ['incline-db-press', 4, '8-12'],
+      ['db-fly', 3, '10-12'],
+      ['cable-lateral-raise', 3, '12-15'],
+      ['overhead-press', 3, '8-12'],
+      ['tricep-pushdown', 3, '10-12'],
+    ],
+    pull: [
+      ['barbell-row', 4, '8-10'],
+      ['pull-up', 4, '8'],
+      ['seated-cable-row', 3, '10-12'],
+      ['face-pull', 3, '12-15'],
+      ['barbell-curl', 3, '10'],
+      ['hammer-curl', 3, '10-12'],
+    ],
+    legs: [
+      ['back-squat', 4, '8-10'],
+      ['romanian-deadlift', 4, '8-10'],
+      ['leg-press', 3, '10-12'],
+      ['leg-curl', 3, '10'],
+      ['leg-extension', 3, '12'],
+      ['standing-calf-raise', 4, '12-15'],
+    ],
+    upper: [
+      ['bench-press', 4, '8-10'],
+      ['barbell-row', 4, '8-10'],
+      ['overhead-press', 3, '8-12'],
+      ['pull-up', 3, '8-10'],
+      ['barbell-curl', 3, '10-12'],
+      ['tricep-pushdown', 3, '10-12'],
+    ],
+  },
+};
+
+export function getStarterTemplates(goal?: StarterGoal | null) {
+  const effectiveGoal: StarterGoal = goal ?? 'maintenance';
+  const config = GOAL_TEMPLATES[effectiveGoal];
+  const notes = GOAL_NOTES[effectiveGoal];
   const createdAt = new Date().toISOString();
   return [
     {
       id: 'starter-push',
       name: 'Push Day',
-      notes: 'Chest, shoulders, and triceps focus.',
-      exercises: pick('bench-press', 'incline-db-press', 'machine-chest-press', 'cable-lateral-raise', 'overhead-press', 'tricep-pushdown'),
+      notes: notes.push,
+      exercises: pickWithTargets(config.push),
       createdAt,
     },
     {
       id: 'starter-pull',
       name: 'Pull Day',
-      notes: 'Back, rear delts, and biceps focus.',
-      exercises: pick('barbell-row', 'lat-pulldown', 'seated-cable-row', 'face-pull', 'barbell-curl', 'hammer-curl'),
+      notes: notes.pull,
+      exercises: pickWithTargets(config.pull),
       createdAt,
     },
     {
       id: 'starter-legs',
       name: 'Leg Day',
-      notes: 'Quads, hamstrings, and calves focus.',
-      exercises: pick('back-squat', 'leg-press', 'romanian-deadlift', 'leg-curl', 'leg-extension', 'standing-calf-raise'),
+      notes: notes.legs,
+      exercises: pickWithTargets(config.legs),
       createdAt,
     },
     {
       id: 'starter-upper',
       name: 'Upper Day',
-      notes: 'Full upper body session.',
-      exercises: pick('bench-press', 'barbell-row', 'overhead-press', 'lat-pulldown', 'tricep-pushdown', 'barbell-curl'),
+      notes: notes.upper,
+      exercises: pickWithTargets(config.upper),
       createdAt,
     },
   ];

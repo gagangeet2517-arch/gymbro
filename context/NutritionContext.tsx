@@ -59,7 +59,7 @@ type NutritionContextType = {
   targets: DailyTargets;
   todaysMeals: MealEntry[];
   todaysTotals: Totals;
-  addMeal: (entry: Omit<MealEntry, 'id' | 'loggedAt'>) => void;
+  addMeal: (entry: Omit<MealEntry, 'id' | 'loggedAt'>, loggedAt?: string) => void;
   deleteMeal: (id: string) => void;
   updateTargets: (t: DailyTargets) => void;
 };
@@ -118,11 +118,11 @@ export function NutritionProvider({ children }: { children: React.ReactNode }) {
     [todaysMeals]
   );
 
-  const addMeal = (entry: Omit<MealEntry, 'id' | 'loggedAt'>) => {
+  const addMeal = (entry: Omit<MealEntry, 'id' | 'loggedAt'>, loggedAt?: string) => {
     const newMeal: MealEntry = {
       ...entry,
       id: `${Date.now()}-${Math.random()}`,
-      loggedAt: new Date().toISOString(),
+      loggedAt: loggedAt ?? new Date().toISOString(),
     };
     setMeals((prev) => [newMeal, ...prev]);
   };
