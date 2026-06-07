@@ -221,7 +221,7 @@ function ReminderRow({
             <Text style={ps.remFieldLbl}>{showInterval ? 'Your goal' : 'Reminder message'}</Text>
             <TextInput
               style={ps.remInput}
-              value={config.message}
+              value={config.message ?? ''}
               onChangeText={(t) => onChange({ ...config, message: t })}
               placeholder={showInterval ? 'e.g. Lose 5 kg by August 1st' : 'e.g. Hit 180g protein today'}
               placeholderTextColor={C.textMuted}
@@ -231,7 +231,7 @@ function ReminderRow({
               inputAccessoryViewID={PROFILE_KBD_ID}
             />
             <Text style={ps.remHint}>
-              {config.message.trim()
+              {(config.message ?? '').trim()
                 ? 'This text shows in the notification.'
                 : 'Leave blank to use the default reminder text.'}
             </Text>
