@@ -56,7 +56,14 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
       if (raw) {
         try {
           const saved = JSON.parse(raw);
-          setProfile({ ...DEFAULT_PROFILE, ...saved });
+          // Deep-merge the nested reminder objects so profiles saved by older
+          // builds (without newer fields like `message`) get backfilled defaults.
+          setProfile({
+            ...DEFAULT_PROFILE,
+            ...saved,
+            dailyReminder: { ...DEFAULT_PROFILE.dailyReminder, ...saved.dailyReminder },
+            longTermReminder: { ...DEFAULT_PROFILE.longTermReminder, ...saved.longTermReminder },
+          });
         } catch { /* ignore corrupt data */ }
       }
       setHasHydrated(true);

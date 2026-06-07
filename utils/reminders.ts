@@ -76,14 +76,14 @@ export async function syncReminders(
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'gymbro',
-        body: daily.message.trim() || "Time to log today's workout and meals 💪",
+        body: (daily.message ?? '').trim() || "Time to log today's workout and meals 💪",
       },
       trigger: dailyTrigger(daily),
     });
   }
 
   if (longTerm.enabled) {
-    const goal = longTerm.message.trim();
+    const goal = (longTerm.message ?? '').trim();
     await Notifications.scheduleNotificationAsync({
       content: {
         title: goal ? 'Your goal' : 'Check in on your goal',
