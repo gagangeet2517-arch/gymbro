@@ -216,6 +216,26 @@ function ReminderRow({
               })}
             </View>
           )}
+
+          <View>
+            <Text style={ps.remFieldLbl}>{showInterval ? 'Your goal' : 'Reminder message'}</Text>
+            <TextInput
+              style={ps.remInput}
+              value={config.message}
+              onChangeText={(t) => onChange({ ...config, message: t })}
+              placeholder={showInterval ? 'e.g. Lose 5 kg by August 1st' : 'e.g. Hit 180g protein today'}
+              placeholderTextColor={C.textMuted}
+              keyboardAppearance="dark"
+              returnKeyType="done"
+              maxLength={120}
+              inputAccessoryViewID={PROFILE_KBD_ID}
+            />
+            <Text style={ps.remHint}>
+              {config.message.trim()
+                ? 'This text shows in the notification.'
+                : 'Leave blank to use the default reminder text.'}
+            </Text>
+          </View>
         </View>
       )}
     </View>
@@ -2236,6 +2256,12 @@ const ps = StyleSheet.create({
   remTitle: { color: C.text, fontSize: 14, fontWeight: '800' },
   remSub: { color: C.textSub, fontSize: 12, marginTop: 2 },
   remBody: { gap: 12 },
+  remFieldLbl: { color: C.textSub, fontSize: 12, fontWeight: '700', marginBottom: 6 },
+  remInput: {
+    backgroundColor: C.elevated, borderWidth: 1, borderColor: C.border,
+    borderRadius: 12, color: C.text, paddingHorizontal: 13, paddingVertical: 10, fontSize: 14,
+  },
+  remHint: { color: C.textMuted, fontSize: 11, marginTop: 5 },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   timeUnit: { alignItems: 'center', gap: 4 },
   timeBtn: {

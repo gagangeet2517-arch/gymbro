@@ -76,17 +76,20 @@ export async function syncReminders(
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'gymbro',
-        body: "Time to log today's workout and meals 💪",
+        body: daily.message.trim() || "Time to log today's workout and meals 💪",
       },
       trigger: dailyTrigger(daily),
     });
   }
 
   if (longTerm.enabled) {
+    const goal = longTerm.message.trim();
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Check in on your goal',
-        body: 'How is your progress? Open gymbro and review where you stand. 📈',
+        title: goal ? 'Your goal' : 'Check in on your goal',
+        body: goal
+          ? `${goal} — how's it going? 📈`
+          : 'How is your progress? Open gymbro and review where you stand. 📈',
       },
       trigger: longTermTrigger(longTerm),
     });
