@@ -12,6 +12,7 @@ export type ReminderConfig = {
   hour: number;   // 0–23
   minute: number; // 0–59
   interval: ReminderInterval; // honoured by the long-term reminder; daily is always daily
+  message: string; // custom notification text; daily = reminder message, long-term = goal description
 };
 
 export type UserProfile = {
@@ -40,8 +41,8 @@ const DEFAULT_PROFILE: UserProfile = {
   phone: '',
   goal: null,
   lifestyleGoals: [],
-  dailyReminder: { enabled: false, hour: 18, minute: 0, interval: 'daily' },
-  longTermReminder: { enabled: false, hour: 9, minute: 0, interval: 'weekly' },
+  dailyReminder: { enabled: false, hour: 18, minute: 0, interval: 'daily', message: '' },
+  longTermReminder: { enabled: false, hour: 9, minute: 0, interval: 'weekly', message: '' },
 };
 
 const UserProfileContext = createContext<UserProfileContextType | null>(null);

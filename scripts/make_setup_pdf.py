@@ -373,9 +373,11 @@ def build():
         'Drives the goal-based starter templates and computed nutrition targets.',
         '<b>Other goals</b> — a dropdown holding habit goals (hydration, steps, sleep, consistency) '
         'plus your reminders.',
-        '<b>Daily reminder</b> — a notification at a time you choose, every day.',
+        '<b>Daily reminder</b> — a notification at a time you choose, every day. Add an optional '
+        'custom message (e.g. "Hit 180g protein today") that appears in the notification.',
         '<b>Long-term reminder</b> — a notification at a time you choose, repeating on a custom '
-        'interval (daily / weekly / monthly).',
+        'interval (daily / weekly / monthly). Type your goal (e.g. "Lose 5 kg by August 1st") and '
+        'it becomes the notification text so you are reminded of the specific goal.',
     ]))
     s.append(callout('Reminders use local notifications, so the app asks for notification permission '
                      'the first time you enable one. They require the native build (expo-notifications), '
