@@ -252,10 +252,17 @@ def build():
     s.append(sub('6.1  Get a free key'))
     s.append(para('Sign in at aistudio.google.com/apikey and create an API key. It is free for the usage '
                   'limits this app needs and takes about a minute.'))
-    s.append(sub('6.2  Add the key in the app'))
-    s.append(para('Open the app, go to the <b>Home</b> tab and open your <b>Profile</b>. Under '
-                  '"AI features · Gemini key", paste your key and tap Save profile. The key is stored '
-                  'locally on the device and is used in preference to any shared key.'))
+    s.append(sub('6.2  Add the key in Profile'))
+    s.append(para('The key lives in your in-app Profile. Step by step:'))
+    s.append(bullets([
+        'Open the app and tap the <b>Home</b> tab.',
+        'Tap the profile / avatar icon to open <b>Your Profile</b>.',
+        'Scroll to <b>AI features · Gemini key</b> and paste your key into the field.',
+        'Tap <b>Save profile</b>. A "Using your key" status confirms it is active.',
+    ]))
+    s.append(callout('No key, no AI: if the photo scan, voice logging, or coach show '
+                     '"Add your Google Gemini API key in Profile", it means this step has not been done. '
+                     'The key is stored locally on the device and is used in preference to any shared key.'))
     s.append(sub('6.3  Optional environment fallback (developers)'))
     s.append(para('For local development you can instead provide keys via a <font face="Courier">.env.local</font> '
                   'file at the project root. A key entered in Profile always takes priority over these:'))
