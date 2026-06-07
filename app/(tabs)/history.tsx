@@ -1,5 +1,6 @@
-import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import React from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -39,10 +40,23 @@ export default function HistoryScreen() {
 
         {completedWorkouts.length === 0 ? (
           <AppCard>
-            <Text style={styles.emptyTitle}>No completed workouts yet</Text>
-            <Text style={styles.emptyText}>
-              Finish a workout session to see it appear here.
-            </Text>
+            <View style={styles.emptyWrap}>
+              <View style={styles.emptyIconBox}>
+                <Ionicons name="time-outline" size={30} color="#22C55E" />
+              </View>
+              <Text style={styles.emptyTitle}>No completed workouts yet</Text>
+              <Text style={styles.emptyText}>
+                Finish a workout session and it will appear here with your sets, volume, and calories.
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyCta}
+                activeOpacity={0.85}
+                onPress={() => router.push('/(tabs)/explore')}
+              >
+                <Ionicons name="add" size={16} color="#07110A" />
+                <Text style={styles.emptyCtaText}>Start a workout</Text>
+              </TouchableOpacity>
+            </View>
           </AppCard>
         ) : (
           completedWorkouts.map((workout) => (
@@ -102,17 +116,43 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginBottom: 8,
   },
+  emptyWrap: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 10,
+  },
+  emptyIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: 'rgba(34,197,94,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
   emptyTitle: {
     color: COLORS.textPrimary,
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 8,
+    textAlign: 'center',
   },
   emptyText: {
     color: COLORS.textSecondary,
     fontSize: 14,
     lineHeight: 21,
+    textAlign: 'center',
   },
+  emptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#22C55E',
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    marginTop: 6,
+  },
+  emptyCtaText: { color: '#07110A', fontSize: 14, fontWeight: '800' },
   cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
