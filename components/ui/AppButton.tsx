@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import React, { useRef } from 'react';
+import { Animated, Pressable, StyleSheet, Text } from 'react-native';
 
 type AppButtonProps = {
   title: string;
@@ -18,21 +18,39 @@ export default function AppButton({
   onPress,
   variant = 'primary',
 }: AppButtonProps) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (to: number) =>
+    Animated.spring(scale, {
+      toValue: to,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 6,
+    }).start();
+
   return (
-    <TouchableOpacity
-      activeOpacity={0.85}
+    <Pressable
       onPress={onPress}
-      style={[styles.button, variant === 'secondary' && styles.secondaryButton]}
+      onPressIn={() => animateTo(0.96)}
+      onPressOut={() => animateTo(1)}
     >
-      <Text
+      <Animated.View
         style={[
-          styles.buttonText,
-          variant === 'secondary' && styles.secondaryButtonText,
+          styles.button,
+          variant === 'secondary' && styles.secondaryButton,
+          { transform: [{ scale }] },
         ]}
       >
-        {title}
-      </Text>
-    </TouchableOpacity>
+        <Text
+          style={[
+            styles.buttonText,
+            variant === 'secondary' && styles.secondaryButtonText,
+          ]}
+        >
+          {title}
+        </Text>
+      </Animated.View>
+    </Pressable>
   );
 }
 

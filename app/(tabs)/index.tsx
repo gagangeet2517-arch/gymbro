@@ -8,21 +8,31 @@ import {
   InputAccessoryView,
   Keyboard,
   Linking,
+  LayoutAnimation,
   Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
+  UIManager,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import PressableScale from '../../components/ui/PressableScale';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { useNutrition } from '../../context/NutritionContext';
 import { Template, useTemplates } from '../../context/TemplateContext';
-import { UserGoal, useUserProfile } from '../../context/UserProfileContext';
+import {
+  LifestyleGoal,
+  ReminderConfig,
+  ReminderInterval,
+  UserGoal,
+  useUserProfile,
+} from '../../context/UserProfileContext';
 import {
   ActiveWorkoutExercise,
   type CompletedWorkout,
@@ -34,6 +44,7 @@ import {
   computeGoalTargets,
   computeMaintenanceCal,
 } from '../../utils/nutritionGoals';
+import { syncReminders } from '../../utils/reminders';
 import { loadUserGeminiKey, setUserGeminiKey } from '../../utils/userApiKey';
 
 // Build reverse map: muscle subgroup → main group label (e.g. 'Quads' → 'Legs')
@@ -77,6 +88,139 @@ const C = {
   purpleDim:    'rgba(168,85,247,0.12)',
   purpleBorder: 'rgba(168,85,247,0.30)',
 } as const;
+
+// Enable smooth expand/collapse on Android.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const LIFESTYLE_META: Record<
+  LifestyleGoal,
+  { label: string; icon: keyof typeof Ionicons.glyphMap; desc: string; color: string }
+> = {
+  hydration:   { label: 'Hydration',   icon: 'water-outline', desc: 'Drink enough water each day',     color: '#3B82F6' },
+  steps:       { label: 'Daily steps', icon: 'walk-outline',  desc: 'Hit a daily step target',         color: '#22C55E' },
+  sleep:       { label: 'Sleep',       icon: 'moon-outline',  desc: 'Keep a consistent sleep schedule', color: '#A855F7' },
+  consistency: { label: 'Consistency', icon: 'flame-outline', desc: 'Train regularly every week',       color: '#F59E0B' },
+};
+
+const INTERVAL_LABEL: Record<ReminderInterval, string> = {
+  daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly',
+};
+
+function fmtTime(hour: number, minute: number): string {
+  const h = ((hour + 11) % 12) + 1;
+  const ampm = hour < 12 ? 'AM' : 'PM';
+  return `${h}:${String(minute).padStart(2, '0')} ${ampm}`;
+}
+
+// Collapsible section header used for the profile "dropdowns".
+function DropdownHeader({
+  label, value, open, onPress,
+}: { label: string; value: string; open: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={ps.ddHeader} activeOpacity={0.8} onPress={onPress}>
+      <View style={{ flex: 1 }}>
+        <Text style={ps.ddLabel}>{label}</Text>
+        <Text style={ps.ddValue} numberOfLines={1}>{value}</Text>
+      </View>
+      <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={C.textSub} />
+    </TouchableOpacity>
+  );
+}
+
+// Small ± stepper for the hour/minute of a reminder time.
+function TimeStepper({
+  hour, minute, onChange,
+}: { hour: number; minute: number; onChange: (h: number, m: number) => void }) {
+  const bump = (field: 'h' | 'm', dir: 1 | -1) => {
+    if (field === 'h') onChange((hour + dir + 24) % 24, minute);
+    else onChange(hour, (minute + dir * 5 + 60) % 60);
+  };
+  return (
+    <View style={ps.timeRow}>
+      <View style={ps.timeUnit}>
+        <TouchableOpacity style={ps.timeBtn} onPress={() => bump('h', 1)} activeOpacity={0.7}>
+          <Ionicons name="chevron-up" size={14} color={C.textSub} />
+        </TouchableOpacity>
+        <Text style={ps.timeVal}>{String(((hour + 11) % 12) + 1).padStart(2, '0')}</Text>
+        <TouchableOpacity style={ps.timeBtn} onPress={() => bump('h', -1)} activeOpacity={0.7}>
+          <Ionicons name="chevron-down" size={14} color={C.textSub} />
+        </TouchableOpacity>
+      </View>
+      <Text style={ps.timeColon}>:</Text>
+      <View style={ps.timeUnit}>
+        <TouchableOpacity style={ps.timeBtn} onPress={() => bump('m', 1)} activeOpacity={0.7}>
+          <Ionicons name="chevron-up" size={14} color={C.textSub} />
+        </TouchableOpacity>
+        <Text style={ps.timeVal}>{String(minute).padStart(2, '0')}</Text>
+        <TouchableOpacity style={ps.timeBtn} onPress={() => bump('m', -1)} activeOpacity={0.7}>
+          <Ionicons name="chevron-down" size={14} color={C.textSub} />
+        </TouchableOpacity>
+      </View>
+      <Text style={ps.timeAmPm}>{hour < 12 ? 'AM' : 'PM'}</Text>
+    </View>
+  );
+}
+
+// One reminder configuration row: enable switch + time + optional interval.
+function ReminderRow({
+  title, subtitle, config, onChange, showInterval,
+}: {
+  title: string;
+  subtitle: string;
+  config: ReminderConfig;
+  onChange: (c: ReminderConfig) => void;
+  showInterval: boolean;
+}) {
+  return (
+    <View style={ps.remCard}>
+      <View style={ps.remTopRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={ps.remTitle}>{title}</Text>
+          <Text style={ps.remSub}>
+            {config.enabled
+              ? `${showInterval ? INTERVAL_LABEL[config.interval] + ' · ' : ''}${fmtTime(config.hour, config.minute)}`
+              : subtitle}
+          </Text>
+        </View>
+        <Switch
+          value={config.enabled}
+          onValueChange={(v) => onChange({ ...config, enabled: v })}
+          trackColor={{ false: C.border, true: C.accent }}
+          thumbColor="#fff"
+        />
+      </View>
+
+      {config.enabled && (
+        <View style={ps.remBody}>
+          <TimeStepper
+            hour={config.hour}
+            minute={config.minute}
+            onChange={(h, m) => onChange({ ...config, hour: h, minute: m })}
+          />
+          {showInterval && (
+            <View style={ps.segRow}>
+              {(['daily', 'weekly', 'monthly'] as ReminderInterval[]).map((iv) => {
+                const on = config.interval === iv;
+                return (
+                  <TouchableOpacity
+                    key={iv}
+                    style={[ps.segBtn, on && ps.segBtnOn]}
+                    activeOpacity={0.8}
+                    onPress={() => onChange({ ...config, interval: iv })}
+                  >
+                    <Text style={[ps.segText, on && ps.segTextOn]}>{INTERVAL_LABEL[iv]}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
 
 // ─── Movement classification ──────────────────────────────────────────────────
 
@@ -1203,6 +1347,11 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
   const [saveFlash,    setSaveFlash]    = useState(false);
   const [geminiKeyStr, setGeminiKeyStr] = useState('');
   const [showKey,      setShowKey]      = useState(false);
+  const [goalOpen,     setGoalOpen]     = useState(false);
+  const [otherOpen,    setOtherOpen]    = useState(false);
+  const [lifestyle,    setLifestyle]    = useState<LifestyleGoal[]>([]);
+  const [dailyRem,     setDailyRem]     = useState<ReminderConfig>(profile.dailyReminder);
+  const [longRem,      setLongRem]      = useState<ReminderConfig>(profile.longTermReminder);
 
   // Pre-fill on open; intentionally only fires on visibility change so in-progress edits aren't clobbered
   React.useEffect(() => {
@@ -1213,9 +1362,22 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
       setSelectedGoal(profile.goal);
       setSaveFlash(false);
       setShowKey(false);
+      setGoalOpen(false);
+      setOtherOpen(false);
+      setLifestyle(profile.lifestyleGoals);
+      setDailyRem(profile.dailyReminder);
+      setLongRem(profile.longTermReminder);
       loadUserGeminiKey().then((k) => setGeminiKeyStr(k ?? ''));
     }
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleSection = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setter((v) => !v);
+  };
+
+  const toggleLifestyle = (g: LifestyleGoal) =>
+    setLifestyle((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
 
   const weight = latestEntry?.weight ?? null;
   const bf     = latestEntry?.bodyFat ?? null;
@@ -1231,10 +1393,14 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
       phone: phoneStr.trim(),
       countryCode,
       goal: selectedGoal,
+      lifestyleGoals: lifestyle,
+      dailyReminder: dailyRem,
+      longTermReminder: longRem,
     });
     if (selectedGoal && preview) {
       updateTargets(preview);
     }
+    await syncReminders(dailyRem, longRem);
     await setUserGeminiKey(geminiKeyStr);
     setSaveFlash(true);
     setTimeout(() => { setSaveFlash(false); onClose(); }, 1200);
@@ -1308,35 +1474,45 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
             </View>
           </View>
 
-          {/* ── Goal selector ── */}
-          <Text style={[ps.sectionLabel, { marginTop: 20 }]}>Goal profile</Text>
-          <View style={ps.goalGrid}>
-            {GOALS.map((g) => {
-              const meta     = GOAL_META[g];
-              const selected = selectedGoal === g;
-              return (
-                <TouchableOpacity
-                  key={g}
-                  style={[ps.goalCard, selected && ps.goalCardSelected]}
-                  activeOpacity={0.8}
-                  onPress={() => setSelectedGoal(g)}
-                >
-                  <View style={ps.goalCardTop}>
-                    <Text style={[ps.goalLabel, selected && { color: C.accent }]}>{meta.label}</Text>
-                    <View style={[ps.goalTag, { backgroundColor: meta.tagColor + '22', borderColor: meta.tagColor + '55' }]}>
-                      <Text style={[ps.goalTagText, { color: meta.tagColor }]}>{meta.tag}</Text>
+          {/* ── Goals ── */}
+          <Text style={[ps.sectionLabel, { marginTop: 20 }]}>Goals</Text>
+
+          {/* Training goal dropdown */}
+          <DropdownHeader
+            label="Training goal"
+            value={selectedGoal ? GOAL_META[selectedGoal].label : 'Not set — tap to choose'}
+            open={goalOpen}
+            onPress={() => toggleSection(setGoalOpen)}
+          />
+          {goalOpen && (
+            <View style={[ps.goalGrid, { marginTop: 10 }]}>
+              {GOALS.map((g) => {
+                const meta     = GOAL_META[g];
+                const selected = selectedGoal === g;
+                return (
+                  <TouchableOpacity
+                    key={g}
+                    style={[ps.goalCard, selected && ps.goalCardSelected]}
+                    activeOpacity={0.8}
+                    onPress={() => { setSelectedGoal(g); toggleSection(setGoalOpen); }}
+                  >
+                    <View style={ps.goalCardTop}>
+                      <Text style={[ps.goalLabel, selected && { color: C.accent }]}>{meta.label}</Text>
+                      <View style={[ps.goalTag, { backgroundColor: meta.tagColor + '22', borderColor: meta.tagColor + '55' }]}>
+                        <Text style={[ps.goalTagText, { color: meta.tagColor }]}>{meta.tag}</Text>
+                      </View>
                     </View>
-                  </View>
-                  <Text style={ps.goalDesc}>{meta.description}</Text>
-                  {selected && (
-                    <View style={ps.goalCheck}>
-                      <Ionicons name="checkmark-circle" size={16} color={C.accent} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                    <Text style={ps.goalDesc}>{meta.description}</Text>
+                    {selected && (
+                      <View style={ps.goalCheck}>
+                        <Ionicons name="checkmark-circle" size={16} color={C.accent} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           {/* ── Target preview (uses body metrics from Progress tab) ── */}
           {preview ? (
@@ -1376,6 +1552,64 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
               </Text>
             </View>
           ) : null}
+
+          {/* Other goals dropdown — lifestyle goals + reminders */}
+          <View style={{ marginTop: 10 }}>
+            <DropdownHeader
+              label="Other goals"
+              value={
+                (lifestyle.length ? `${lifestyle.length} habit${lifestyle.length > 1 ? 's' : ''}` : 'No habits') +
+                ` · ${[dailyRem.enabled && 'daily', longRem.enabled && 'long-term'].filter(Boolean).join(' + ') || 'no reminders'}`
+              }
+              open={otherOpen}
+              onPress={() => toggleSection(setOtherOpen)}
+            />
+          </View>
+          {otherOpen && (
+            <View style={ps.otherWrap}>
+              {/* Lifestyle habit goals */}
+              <Text style={ps.otherSubLabel}>Habit goals</Text>
+              <View style={ps.lifeGrid}>
+                {(Object.keys(LIFESTYLE_META) as LifestyleGoal[]).map((g) => {
+                  const meta = LIFESTYLE_META[g];
+                  const on = lifestyle.includes(g);
+                  return (
+                    <TouchableOpacity
+                      key={g}
+                      style={[ps.lifeChip, on && { borderColor: meta.color + '88', backgroundColor: meta.color + '1A' }]}
+                      activeOpacity={0.8}
+                      onPress={() => toggleLifestyle(g)}
+                    >
+                      <Ionicons name={meta.icon} size={16} color={on ? meta.color : C.textSub} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[ps.lifeLabel, on && { color: C.text }]}>{meta.label}</Text>
+                        <Text style={ps.lifeDesc}>{meta.desc}</Text>
+                      </View>
+                      {on && <Ionicons name="checkmark-circle" size={16} color={meta.color} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Daily reminder */}
+              <ReminderRow
+                title="Daily reminder"
+                subtitle="A nudge to log your day, every day"
+                config={dailyRem}
+                onChange={setDailyRem}
+                showInterval={false}
+              />
+
+              {/* Long-term goal reminder */}
+              <ReminderRow
+                title="Long-term goal reminder"
+                subtitle="Check in on your bigger goal"
+                config={longRem}
+                onChange={setLongRem}
+                showInterval
+              />
+            </View>
+          )}
 
           {/* ── AI / Gemini API key ── */}
           <Text style={[ps.sectionLabel, { marginTop: 20 }]}>AI features · Gemini key</Text>
@@ -1424,15 +1658,14 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
           </View>
 
           {/* ── Save button ── */}
-          <TouchableOpacity
+          <PressableScale
             style={[ps.applyBtn, saveFlash && ps.applyBtnFlash, { marginTop: 20, marginBottom: 8 }]}
-            activeOpacity={0.85}
             onPress={handleSave}
           >
             {saveFlash
               ? <><Ionicons name="checkmark" size={16} color="#071109" /><Text style={ps.applyBtnText}>Saved</Text></>
               : <Text style={ps.applyBtnText}>Save profile</Text>}
-          </TouchableOpacity>
+          </PressableScale>
 
         </ScrollView>
 
@@ -1972,6 +2205,54 @@ const ps = StyleSheet.create({
   goalTagText: { fontSize: 10, fontWeight: '800' },
   goalDesc: { color: C.textMuted, fontSize: 11, lineHeight: 16 },
   goalCheck: { position: 'absolute', top: 10, right: 10 },
+
+  // Dropdown header (collapsible section)
+  ddHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+  },
+  ddLabel: { color: C.text, fontSize: 14, fontWeight: '800' },
+  ddValue: { color: C.textSub, fontSize: 12, marginTop: 2 },
+
+  // Other goals
+  otherWrap: { marginTop: 10, gap: 12 },
+  otherSubLabel: { color: C.textSub, fontSize: 12, fontWeight: '700', marginBottom: -2 },
+  lifeGrid: { gap: 8 },
+  lifeChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11,
+  },
+  lifeLabel: { color: C.textSub, fontSize: 13, fontWeight: '800' },
+  lifeDesc: { color: C.textMuted, fontSize: 11, marginTop: 1 },
+
+  // Reminder card
+  remCard: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, gap: 12,
+  },
+  remTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  remTitle: { color: C.text, fontSize: 14, fontWeight: '800' },
+  remSub: { color: C.textSub, fontSize: 12, marginTop: 2 },
+  remBody: { gap: 12 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  timeUnit: { alignItems: 'center', gap: 4 },
+  timeBtn: {
+    width: 40, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.elevated, borderWidth: 1, borderColor: C.border,
+  },
+  timeVal: { color: C.text, fontSize: 20, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  timeColon: { color: C.text, fontSize: 20, fontWeight: '800', marginTop: -2 },
+  timeAmPm: { color: C.textSub, fontSize: 13, fontWeight: '800', marginLeft: 4 },
+  segRow: { flexDirection: 'row', gap: 8 },
+  segBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 10,
+    backgroundColor: C.elevated, borderWidth: 1, borderColor: C.border,
+  },
+  segBtnOn: { backgroundColor: C.accentDim, borderColor: C.accentBorder },
+  segText: { color: C.textSub, fontSize: 12, fontWeight: '700' },
+  segTextOn: { color: C.accent },
 
   // Preview
   previewCard: {

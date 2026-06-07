@@ -3,11 +3,25 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 
 export type UserGoal = 'fat_loss' | 'lean_bulk' | 'maintenance' | 'recomp';
 
+export type LifestyleGoal = 'hydration' | 'steps' | 'sleep' | 'consistency';
+
+export type ReminderInterval = 'daily' | 'weekly' | 'monthly';
+
+export type ReminderConfig = {
+  enabled: boolean;
+  hour: number;   // 0–23
+  minute: number; // 0–59
+  interval: ReminderInterval; // honoured by the long-term reminder; daily is always daily
+};
+
 export type UserProfile = {
   name: string;
   countryCode: string;
   phone: string;
   goal: UserGoal | null;
+  lifestyleGoals: LifestyleGoal[];
+  dailyReminder: ReminderConfig;
+  longTermReminder: ReminderConfig;
 };
 
 type UserProfileContextType = {
@@ -25,6 +39,9 @@ const DEFAULT_PROFILE: UserProfile = {
   countryCode: '+1',
   phone: '',
   goal: null,
+  lifestyleGoals: [],
+  dailyReminder: { enabled: false, hour: 18, minute: 0, interval: 'daily' },
+  longTermReminder: { enabled: false, hour: 9, minute: 0, interval: 'weekly' },
 };
 
 const UserProfileContext = createContext<UserProfileContextType | null>(null);
