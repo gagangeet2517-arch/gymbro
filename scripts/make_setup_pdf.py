@@ -166,7 +166,8 @@ def build():
                   '(see section 6). Everything else runs without a network.'))
     s.append(para('This manual walks through every step required to clone the project, install its '
                   'dependencies, run it on a simulator, emulator, or physical device, and enable the '
-                  'optional AI features.'))
+                  'optional AI features. On first launch the app shows a short onboarding walkthrough; '
+                  'you can configure goals and reminders later from your Profile (see section 14).'))
 
     # ── 2. Prerequisites ──
     s.append(heading('2. Prerequisites'))
@@ -216,8 +217,8 @@ def build():
     s.append(para('From the project root, install everything listed in package.json:'))
     s.append(code('npm install'))
     s.append(para('This pulls down React, React Native, Expo, the navigation libraries, AsyncStorage, '
-                  'react-native-svg (used for the progress charts), and the rest of the dependencies. '
-                  'The first install can take a few minutes.'))
+                  'react-native-svg (progress charts), expo-notifications (goal reminders), and the rest '
+                  'of the dependencies. The first install can take a few minutes.'))
     s.append(callout('If the install fails with a peer-dependency error, try '
                      '<font face="Courier">npm install --legacy-peer-deps</font>. If it fails with a permissions '
                      'error, never use sudo — fix the npm prefix instead (see troubleshooting).'))
@@ -361,8 +362,27 @@ def build():
                   'git commit -m "Describe what you changed"\ngit push -u origin my-feature'))
     s.append(para('Then open a pull request on GitHub to merge your branch into main.'))
 
-    # ── 14. Help ──
-    s.append(heading('14. Where to get help'))
+    # ── 14. Goals, onboarding & reminders ──
+    s.append(heading('14. Goals, onboarding & reminders'))
+    s.append(para('First-time users see a short swipeable onboarding walkthrough explaining workouts, '
+                  'AI nutrition, progress, and goals. It only appears once (a flag is stored in '
+                  'AsyncStorage); reinstalling or clearing app data shows it again.'))
+    s.append(para('Everything below lives in Home → Profile:'))
+    s.append(bullets([
+        '<b>Training goal</b> — a dropdown to pick Fat loss / Lean bulk / Maintenance / Recomp. '
+        'Drives the goal-based starter templates and computed nutrition targets.',
+        '<b>Other goals</b> — a dropdown holding habit goals (hydration, steps, sleep, consistency) '
+        'plus your reminders.',
+        '<b>Daily reminder</b> — a notification at a time you choose, every day.',
+        '<b>Long-term reminder</b> — a notification at a time you choose, repeating on a custom '
+        'interval (daily / weekly / monthly).',
+    ]))
+    s.append(callout('Reminders use local notifications, so the app asks for notification permission '
+                     'the first time you enable one. They require the native build (expo-notifications), '
+                     'not Expo Go. If reminders never fire, check notification permission in your phone settings.'))
+
+    # ── 15. Help ──
+    s.append(heading('15. Where to get help'))
     s.append(bullets([
         'Expo documentation — docs.expo.dev',
         'React Native documentation — reactnative.dev',

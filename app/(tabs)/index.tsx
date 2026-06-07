@@ -22,6 +22,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import PressableScale from '../../components/ui/PressableScale';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { useNutrition } from '../../context/NutritionContext';
 import { Template, useTemplates } from '../../context/TemplateContext';
@@ -1657,15 +1658,14 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
           </View>
 
           {/* ── Save button ── */}
-          <TouchableOpacity
+          <PressableScale
             style={[ps.applyBtn, saveFlash && ps.applyBtnFlash, { marginTop: 20, marginBottom: 8 }]}
-            activeOpacity={0.85}
             onPress={handleSave}
           >
             {saveFlash
               ? <><Ionicons name="checkmark" size={16} color="#071109" /><Text style={ps.applyBtnText}>Saved</Text></>
               : <Text style={ps.applyBtnText}>Save profile</Text>}
-          </TouchableOpacity>
+          </PressableScale>
 
         </ScrollView>
 

@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import PressableScale from '../../components/ui/PressableScale';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { Exercise, useExercises } from '../../context/ExerciseContext';
 import { useWorkout } from '../../context/WorkoutContext';
@@ -430,14 +431,13 @@ export default function ActiveWorkoutScreen() {
             </View>
           ))}
 
-          <TouchableOpacity
+          <PressableScale
             style={styles.addExerciseButton}
-            activeOpacity={0.85}
             onPress={() => setPickerOpen(true)}
           >
             <Ionicons name="add-circle-outline" size={18} color={COLORS.accent} />
             <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </ScrollView>
 
         {overlayType !== null ? (
