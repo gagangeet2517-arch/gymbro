@@ -409,27 +409,26 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   };
 
   const finishWorkout = (extras?: FinishExtras): CompletedWorkout | null => {
-    let saved: CompletedWorkout | null = null;
-    setActiveWorkout((prev) => {
-      if (!prev) return prev;
+    // Read from the closure rather than the setState updater: calling
+    // setCompletedWorkouts inside another updater is an impure side effect
+    // that double-fires under StrictMode/concurrent re-invocation.
+    if (!activeWorkout) return null;
 
-      const completedWorkout: CompletedWorkout = {
-        id: `${Date.now()}-${Math.random()}`,
-        templateId: prev.templateId,
-        templateName: prev.templateName,
-        startedAt: prev.startedAt,
-        finishedAt: new Date().toISOString(),
-        exercises: prev.exercises,
-        durationMin: extras?.durationMin,
-        totalVolume: extras?.totalVolume,
-        caloriesBurned: extras?.caloriesBurned ?? null,
-      };
+    const completedWorkout: CompletedWorkout = {
+      id: `${Date.now()}-${Math.random()}`,
+      templateId: activeWorkout.templateId,
+      templateName: activeWorkout.templateName,
+      startedAt: activeWorkout.startedAt,
+      finishedAt: new Date().toISOString(),
+      exercises: activeWorkout.exercises,
+      durationMin: extras?.durationMin,
+      totalVolume: extras?.totalVolume,
+      caloriesBurned: extras?.caloriesBurned ?? null,
+    };
 
-      saved = completedWorkout;
-      setCompletedWorkouts((existing) => [completedWorkout, ...existing]);
-      return null;
-    });
-    return saved;
+    setCompletedWorkouts((existing) => [completedWorkout, ...existing]);
+    setActiveWorkout(null);
+    return completedWorkout;
   };
 
   const discardWorkout = () => {
