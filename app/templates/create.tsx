@@ -76,7 +76,7 @@ export default function CreateTemplateScreen() {
       return;
     }
 
-    if (fromExercises) {
+    if (fromExercises && !initializedRef.current) {
       setTemplateName(draftName || existingTemplate.name);
       setNotes(draftNotes || existingTemplate.notes);
       initializedRef.current = true;
@@ -86,15 +86,18 @@ export default function CreateTemplateScreen() {
   }
 
   if (!editId && isStarterCopy && !fromExercises) {
-    setTemplateName(draftName || '');
-    setNotes(draftNotes || '');
-    initializedRef.current = true;
+    if (!initializedRef.current) {
+      setTemplateName(draftName || '');
+      setNotes(draftNotes || '');
+      initializedRef.current = true;
+    }
     return;
   }
 
-  if (!editId && fromExercises) {
+  if (!editId && fromExercises && !initializedRef.current) {
     setTemplateName(draftName || '');
     setNotes(draftNotes || '');
+    initializedRef.current = true;
   }
 }, [
   editId,
@@ -148,6 +151,7 @@ export default function CreateTemplateScreen() {
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <TouchableOpacity
           style={styles.backButton}

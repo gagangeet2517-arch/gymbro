@@ -45,12 +45,13 @@ function longTermTrigger(c: ReminderConfig): Notifications.NotificationTriggerIn
       minute: c.minute,
     };
   }
-  // Monthly: expo has no cross-platform monthly calendar trigger, so approximate
-  // with a repeating ~30-day interval.
+  // Monthly: fire on this day-of-month, clamped to 28 so it never skips
+  // short months (Feb etc.).
   return {
-    type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-    seconds: 30 * 24 * 60 * 60,
-    repeats: true,
+    type: Notifications.SchedulableTriggerInputTypes.MONTHLY,
+    day: Math.min(new Date().getDate(), 28),
+    hour: c.hour,
+    minute: c.minute,
   };
 }
 

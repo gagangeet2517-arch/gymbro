@@ -67,13 +67,17 @@ function nextStrengthLevel(level: StrengthLevel): StrengthLevel {
   return map[level];
 }
 
-// Monday-anchored week start as YYYY-MM-DD
+// Monday-anchored week start as YYYY-MM-DD (local date components — using
+// toISOString here would shift the key to Sunday for timezones ahead of UTC)
 function weekStart(date: Date): string {
   const d = new Date(date);
   const day = d.getDay();
   d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
   d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
 }
 
 function daysSince(iso: string): number {

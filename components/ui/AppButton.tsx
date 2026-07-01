@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 type AppButtonProps = {
   title: string;
@@ -29,17 +29,13 @@ export default function AppButton({
     }).start();
 
   return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => animateTo(0.96)}
-      onPressOut={() => animateTo(1)}
-    >
-      <Animated.View
-        style={[
-          styles.button,
-          variant === 'secondary' && styles.secondaryButton,
-          { transform: [{ scale }] },
-        ]}
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={onPress}
+        onPressIn={() => animateTo(0.96)}
+        onPressOut={() => animateTo(1)}
+        style={[styles.button, variant === 'secondary' && styles.secondaryButton]}
       >
         <Text
           style={[
@@ -49,8 +45,8 @@ export default function AppButton({
         >
           {title}
         </Text>
-      </Animated.View>
-    </Pressable>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
