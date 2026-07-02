@@ -56,6 +56,7 @@ export default function WorkoutsScreen() {
     moveTemplateUp,
     moveTemplateDown,
     refreshStartersForGoal,
+    startersGoal,
   } = useTemplates();
   const { clearTemplateExercises, setTemplateExercises } = useExercises();
   const { startWorkoutFromTemplate, activeWorkout, completedWorkouts } = useWorkout();
@@ -206,7 +207,8 @@ export default function WorkoutsScreen() {
           ) : null}
         </View>
 
-        {goal && !isReorderMode ? (
+        {/* Only prompt when the starters were built for a different goal */}
+        {goal && goal !== startersGoal && !isReorderMode ? (
           <TouchableOpacity
             style={styles.goalRefreshCard}
             activeOpacity={0.85}
