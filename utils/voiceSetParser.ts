@@ -69,8 +69,45 @@ function sane(weight: number | null, reps: number): ParsedSet | null {
   return { weight, reps };
 }
 
+// "sixty for eight" is often transcribed as one merged number: "6048"
+// (60 + "for"→4 + 8) or "648". Salvage by trying plausible splits, preferring
+// a "4" as the misheard "for" separator and weights on the real plate grid.
+function salvageMergedNumber(s: string): ParsedSet | null {
+  const candidates: ParsedSet[] = [];
+
+  for (let i = 1; i < s.length - 1; i++) {
+    if (s[i] === '4') {
+      const c = sane(Number(s.slice(0, i)), Number(s.slice(i + 1)));
+      if (c) candidates.push(c);
+    }
+  }
+  for (const repDigits of [1, 2]) {
+    if (s.length > repDigits) {
+      const c = sane(
+        Number(s.slice(0, s.length - repDigits)),
+        Number(s.slice(s.length - repDigits))
+      );
+      if (c) candidates.push(c);
+    }
+  }
+  if (candidates.length === 0) return null;
+
+  const score = (c: ParsedSet) => {
+    const w = c.weight ?? 0;
+    let sc = 0;
+    if (w % 2.5 === 0) sc += 3; // real plate/pin grid
+    if (w % 5 === 0) sc += 1;
+    if (c.reps <= 20) sc += 2;
+    if (c.reps >= 3) sc += 1;
+    return sc;
+  };
+  candidates.sort((a, b) => score(b) - score(a)); // stable: "4"-separator wins ties
+  return candidates[0];
+}
+
 export function parseSetPhrase(transcript: string): ParsedSet | null {
-  const text = wordsToDigits(transcript).toLowerCase();
+  // Strip thousands separators ("6,048") before anything else.
+  const text = wordsToDigits(transcript.replace(/,/g, '')).toLowerCase();
 
   // "bodyweight (for) 10" / "bodyweight 10 reps"
   let m = text.match(/body\s*weight\s*(?:for\s*)?(\d+)/);
@@ -96,6 +133,11 @@ export function parseSetPhrase(transcript: string): ParsedSet | null {
     const weight = Math.max(a, b);
     const reps = Math.min(a, b);
     if (weight !== reps) return sane(weight, Math.round(reps));
+  }
+
+  // Single merged number ("6048", "648") → salvage a plausible split.
+  if (nums && nums.length === 1 && /^\d{2,6}$/.test(nums[0]) && text.trim() === nums[0]) {
+    return salvageMergedNumber(nums[0]);
   }
 
   return null;
