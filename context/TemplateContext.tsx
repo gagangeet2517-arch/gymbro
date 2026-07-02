@@ -11,6 +11,8 @@ import { Exercise } from './ExerciseContext';
 import { useUserProfile } from './UserProfileContext';
 
 const STORAGE_KEY = 'gymbro_templates';
+// Which goal the current starters were built for; drives the refresh prompt.
+const STARTERS_GOAL_KEY = 'gymbro_templates_goal';
 
 export type Template = {
   id: string;
@@ -32,6 +34,8 @@ type TemplateContextType = {
   moveTemplateUp: (id: string) => void;
   moveTemplateDown: (id: string) => void;
   refreshStartersForGoal: (goal: StarterGoal | null) => void;
+  /** The goal the current starter templates were last built for. */
+  startersGoal: StarterGoal | null;
 };
 
 const TemplateContext = createContext<TemplateContextType | null>(null);
@@ -39,6 +43,7 @@ const TemplateContext = createContext<TemplateContextType | null>(null);
 export function TemplateProvider({ children }: { children: ReactNode }) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [startersGoal, setStartersGoal] = useState<StarterGoal | null>(null);
   const { goal } = useUserProfile();
 
   useEffect(() => {
@@ -46,7 +51,11 @@ export function TemplateProvider({ children }: { children: ReactNode }) {
 
     const loadTemplates = async () => {
       try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        const [raw, rawGoal] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY),
+          AsyncStorage.getItem(STARTERS_GOAL_KEY),
+        ]);
+        if (isMounted && rawGoal) setStartersGoal(rawGoal as StarterGoal);
 
         const starterTemplates: Template[] = getStarterTemplates(goal).map((template) => ({
           ...template,
@@ -56,10 +65,12 @@ export function TemplateProvider({ children }: { children: ReactNode }) {
         if (raw === null) {
           if (isMounted) {
             setTemplates(starterTemplates);
+            setStartersGoal(goal);
             setHasHydrated(true);
           }
 
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(starterTemplates));
+          if (goal) await AsyncStorage.setItem(STARTERS_GOAL_KEY, goal);
           return;
         }
 
@@ -110,6 +121,12 @@ export function TemplateProvider({ children }: { children: ReactNode }) {
       const customs = prev.filter((t) => !freshById.has(t.id));
       return [...fresh, ...customs];
     });
+    setStartersGoal(nextGoal);
+    if (nextGoal) {
+      AsyncStorage.setItem(STARTERS_GOAL_KEY, nextGoal).catch(() => {});
+    } else {
+      AsyncStorage.removeItem(STARTERS_GOAL_KEY).catch(() => {});
+    }
   };
 
   useEffect(() => {
@@ -190,6 +207,7 @@ export function TemplateProvider({ children }: { children: ReactNode }) {
         moveTemplateUp,
         moveTemplateDown,
         refreshStartersForGoal,
+        startersGoal,
       }}
     >
       {children}
