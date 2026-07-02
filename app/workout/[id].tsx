@@ -20,6 +20,12 @@ import { Exercise, useExercises } from '../../context/ExerciseContext';
 import { useWorkout } from '../../context/WorkoutContext';
 import { builtInExercises, MUSCLE_GROUPS } from '../../data/exerciseCatalog';
 import {
+  generateCooldownPlan,
+  generateWarmupPlan,
+  MobilityMove,
+  planMinutes,
+} from '../../data/mobilityCatalog';
+import {
   durationMinFrom,
   estimateCaloriesBurned,
   setsCompletedFromExercises,
@@ -206,6 +212,77 @@ function ExercisePickerModal({
   );
 }
 
+// Collapsible warm-up / cool-down checklist card. Rows are checkable so the
+// lifter can tick moves off as they go; state is session-local on purpose.
+function MobilityCard({
+  emoji,
+  title,
+  plan,
+}: {
+  emoji: string;
+  title: string;
+  plan: MobilityMove[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState<Set<string>>(new Set());
+
+  if (plan.length === 0) return null;
+
+  const toggle = (id: string) =>
+    setDone((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const doneCount = plan.filter((m) => done.has(m.id)).length;
+
+  return (
+    <View style={styles.mobilityCard}>
+      <TouchableOpacity
+        style={styles.mobilityHeader}
+        activeOpacity={0.8}
+        onPress={() => setOpen((v) => !v)}
+      >
+        <Text style={styles.mobilityEmoji}>{emoji}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.mobilityTitle}>{title}</Text>
+          <Text style={styles.mobilityMeta}>
+            ~{planMinutes(plan)} min · {doneCount}/{plan.length} done
+          </Text>
+        </View>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.textSecondary} />
+      </TouchableOpacity>
+
+      {open &&
+        plan.map((move) => {
+          const checked = done.has(move.id);
+          return (
+            <TouchableOpacity
+              key={move.id}
+              style={styles.mobilityRow}
+              activeOpacity={0.7}
+              onPress={() => toggle(move.id)}
+            >
+              <Ionicons
+                name={checked ? 'checkmark-circle' : 'ellipse-outline'}
+                size={20}
+                color={checked ? COLORS.accent : COLORS.textMuted}
+              />
+              <Text style={[styles.mobilityRowText, checked && styles.mobilityRowDone]}>
+                {move.name}
+              </Text>
+              <Text style={styles.mobilityRowTime}>
+                {move.seconds >= 60 ? `${Math.round(move.seconds / 60)}m` : `${move.seconds}s`}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+    </View>
+  );
+}
+
 export default function ActiveWorkoutScreen() {
   const {
     activeWorkout,
@@ -224,6 +301,18 @@ export default function ActiveWorkoutScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
   const [finishSummary, setFinishSummary] = useState<FinishSummary | null>(null);
+
+  // Warm-up / cool-down plans derived from the session's muscles. Keyed on a
+  // joined string so the memo survives re-renders of the exercises array.
+  const muscleKey = activeWorkout?.exercises.map((e) => e.muscle).join('|') ?? '';
+  const warmupPlan = useMemo(
+    () => generateWarmupPlan(muscleKey ? muscleKey.split('|') : []),
+    [muscleKey]
+  );
+  const cooldownPlan = useMemo(
+    () => generateCooldownPlan(muscleKey ? muscleKey.split('|') : []),
+    [muscleKey]
+  );
 
   if (!activeWorkout) {
     return (
@@ -329,6 +418,8 @@ export default function ActiveWorkoutScreen() {
             <Text style={styles.timerLabel}>Workout in progress</Text>
             <Text style={styles.timerValue}>Live session</Text>
           </View>
+
+          <MobilityCard emoji="🔥" title="Warm-up first" plan={warmupPlan} />
 
           {activeWorkout.exercises.map((exercise) => (
             <View key={exercise.id} style={styles.exerciseCard}>
@@ -438,6 +529,8 @@ export default function ActiveWorkoutScreen() {
             <Ionicons name="add-circle-outline" size={18} color={COLORS.accent} />
             <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
           </PressableScale>
+
+          <MobilityCard emoji="🧊" title="Cool-down stretches" plan={cooldownPlan} />
         </ScrollView>
 
         {overlayType !== null ? (
@@ -718,6 +811,54 @@ const styles = StyleSheet.create({
   },
   exerciseHeaderText: {
     flex: 1,
+  },
+  mobilityCard: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
+    gap: 10,
+  },
+  mobilityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  mobilityEmoji: { fontSize: 20 },
+  mobilityTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  mobilityMeta: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    marginTop: 1,
+  },
+  mobilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  mobilityRowText: {
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 18,
+  },
+  mobilityRowDone: {
+    color: COLORS.textMuted,
+    textDecorationLine: 'line-through',
+  },
+  mobilityRowTime: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
   },
   removeExerciseBtn: {
     width: 32,
