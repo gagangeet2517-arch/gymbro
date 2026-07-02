@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWorkout } from '../context/WorkoutContext';
+import { ParsedSet } from '../utils/voiceSetParser';
+import VoiceSetButton from './VoiceSetButton';
 
 const C = {
   bg: '#0A0B0F',
@@ -56,6 +58,9 @@ export default function GuidedWorkout({
   const [resting, setResting] = useState(false);
   const [restLeft, setRestLeft] = useState(REST_SECONDS);
   const [adjusting, setAdjusting] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
+  // One-level undo: the last set marked done through the guide.
+  const [lastDone, setLastDone] = useState<{ index: number; exerciseId: string; setId: string } | null>(null);
 
   // Snapshot the not-yet-done sets, in order, each time the guide opens.
   useEffect(() => {
@@ -70,6 +75,8 @@ export default function GuidedWorkout({
     setPos(0);
     setResting(false);
     setAdjusting(false);
+    setVoiceStatus(null);
+    setLastDone(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
@@ -138,7 +145,9 @@ export default function GuidedWorkout({
   const markDone = () => {
     if (!current) return;
     toggleSetDone(current.exerciseId, current.setId);
+    setLastDone({ index: cursor, exerciseId: current.exerciseId, setId: current.setId });
     setAdjusting(false);
+    setVoiceStatus(null);
     const isLast = cursor >= queue.length - 1;
     if (isLast) {
       setPos(cursor + 1);
@@ -151,7 +160,28 @@ export default function GuidedWorkout({
   const skipSet = () => {
     setAdjusting(false);
     setResting(false);
+    setVoiceStatus(null);
     setPos(cursor + 1);
+  };
+
+  // Undo the last completed set and return to its card.
+  const undoLast = () => {
+    if (!lastDone) return;
+    toggleSetDone(lastDone.exerciseId, lastDone.setId);
+    setResting(false);
+    setAdjusting(false);
+    setVoiceStatus(null);
+    setPos(lastDone.index);
+    setLastDone(null);
+  };
+
+  // Voice: fill the current card's fields; the lifter still confirms with Done.
+  const applyVoice = (set: ParsedSet) => {
+    if (!current) return;
+    if (set.weight != null) {
+      updateSetField(current.exerciseId, current.setId, 'weight', String(set.weight));
+    }
+    updateSetField(current.exerciseId, current.setId, 'reps', String(set.reps));
   };
 
   const skipRest = () => {
@@ -176,7 +206,7 @@ export default function GuidedWorkout({
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.safe}>
         {/* Header */}
         <View style={styles.header}>
@@ -213,6 +243,11 @@ export default function GuidedWorkout({
                 <Text style={styles.restBtnPrimaryText}>I&apos;m ready</Text>
               </TouchableOpacity>
             </View>
+            {lastDone ? (
+              <TouchableOpacity onPress={undoLast} activeOpacity={0.7} style={{ marginTop: 18 }} hitSlop={8}>
+                <Text style={styles.secondaryText}>↩ Undo last set</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : finished ? (
           /* ── All sets done ── */
@@ -267,18 +302,35 @@ export default function GuidedWorkout({
               </View>
             ) : null}
 
-            <TouchableOpacity style={styles.doneBtn} activeOpacity={0.85} onPress={markDone}>
-              <Ionicons name="checkmark" size={26} color="#07110A" />
-              <Text style={styles.doneBtnText}>Done — start rest</Text>
-            </TouchableOpacity>
+            {voiceStatus ? <Text style={styles.voiceStatus}>{voiceStatus}</Text> : null}
+
+            <View style={styles.doneRow}>
+              <VoiceSetButton size={62} onSet={applyVoice} onStatus={setVoiceStatus} />
+              <TouchableOpacity style={[styles.doneBtn, { flex: 1 }]} activeOpacity={0.85} onPress={markDone}>
+                <Ionicons name="checkmark" size={26} color="#07110A" />
+                <Text style={styles.doneBtnText}>Done — start rest</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.secondaryRow}>
+              {lastDone ? (
+                <>
+                  <TouchableOpacity onPress={undoLast} activeOpacity={0.7} hitSlop={8}>
+                    <Text style={styles.secondaryText}>↩ Back</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.secondaryDot}>·</Text>
+                </>
+              ) : null}
               <TouchableOpacity onPress={() => setAdjusting((v) => !v)} activeOpacity={0.7} hitSlop={8}>
                 <Text style={styles.secondaryText}>{adjusting ? 'Hide adjust' : 'Adjust'}</Text>
               </TouchableOpacity>
               <Text style={styles.secondaryDot}>·</Text>
               <TouchableOpacity onPress={skipSet} activeOpacity={0.7} hitSlop={8}>
                 <Text style={styles.secondaryText}>Skip set</Text>
+              </TouchableOpacity>
+              <Text style={styles.secondaryDot}>·</Text>
+              <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={8}>
+                <Text style={styles.secondaryText}>Exit</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -350,6 +402,19 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
 
+  voiceStatus: {
+    color: C.textSub,
+    fontSize: 13,
+    marginTop: 14,
+    textAlign: 'center',
+  },
+  doneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    alignSelf: 'stretch',
+    marginTop: 22,
+  },
   doneBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -358,8 +423,6 @@ const styles = StyleSheet.create({
     backgroundColor: C.accent,
     borderRadius: 20,
     paddingVertical: 20,
-    alignSelf: 'stretch',
-    marginTop: 28,
   },
   doneBtnText: { color: '#07110A', fontSize: 17, fontWeight: '900' },
   secondaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
