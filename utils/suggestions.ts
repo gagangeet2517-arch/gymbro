@@ -6,21 +6,75 @@ export type Suggestion = {
   message: string;
 };
 
-function avg(values: number[]): number | null {
-  if (values.length === 0) return null;
-  return values.reduce((sum, n) => sum + n, 0) / values.length;
+// Typical loading increments by equipment. Suggested weights are snapped to
+// this grid so the app never proposes a weight that doesn't exist in a gym
+// (no "try 26.25kg"). Anything unknown falls back to 2.5kg plates.
+const WEIGHT_STEP: Record<string, number> = {
+  Barbell: 2.5,
+  'EZ-Bar': 2.5,
+  'Smith Machine': 2.5,
+  Dumbbell: 2.5,
+  Cable: 2.5,
+  Machine: 5,
+  Kettlebell: 4,
+};
+
+// Equipment that progresses by reps, not load.
+const REP_BASED = new Set(['Bodyweight', 'Band']);
+
+// Big lower-body barbell lifts tolerate larger jumps (NSCA: ~2.5kg upper,
+// ~5kg lower body).
+const LOWER_BODY = new Set(['Quads', 'Hamstrings', 'Glutes', 'Lower Back', 'Hip Adductors']);
+
+function stepFor(equipment: string, muscle: string): number | null {
+  if (REP_BASED.has(equipment)) return null;
+  const base = WEIGHT_STEP[equipment] ?? 2.5;
+  if (equipment === 'Barbell' && LOWER_BODY.has(muscle)) return 5;
+  return base;
 }
 
-function parseSets(sets: { weight: string; reps: string; done: boolean }[]) {
-  const doneSets = sets.filter((s) => s.done);
-  const source = doneSets.length > 0 ? doneSets : sets;
-  const weights = source
-    .map((s) => Number(s.weight))
-    .filter((n) => Number.isFinite(n) && n > 0);
+function fmtKg(w: number): string {
+  return `${Number.isInteger(w) ? w : parseFloat(w.toFixed(2))}kg`;
+}
+
+// Next real, loadable weight above the current one.
+function nextWeight(current: number, step: number): number {
+  let next = Math.round((current + step) / step) * step;
+  if (next <= current) next += step;
+  return next;
+}
+
+type SetLike = { weight: string; reps: string; done: boolean };
+
+type TopSet = { weight: number; reps: number };
+
+// The heaviest set actually performed (done sets preferred). This is a weight
+// the lifter demonstrably has access to — unlike an average.
+function topSetOf(sets: SetLike[]): TopSet | null {
+  const done = sets.filter((s) => s.done);
+  const source = done.length > 0 ? done : sets;
+
+  let best: TopSet | null = null;
+  for (const s of source) {
+    const w = Number(s.weight);
+    if (!Number.isFinite(w) || w <= 0) continue;
+    const r = Number(s.reps);
+    const reps = Number.isFinite(r) && r > 0 ? r : 0;
+    if (!best || w > best.weight || (w === best.weight && reps > best.reps)) {
+      best = { weight: w, reps };
+    }
+  }
+  return best;
+}
+
+// Best rep count for bodyweight-style movements.
+function bestRepsOf(sets: SetLike[]): number | null {
+  const done = sets.filter((s) => s.done);
+  const source = done.length > 0 ? done : sets;
   const reps = source
     .map((s) => Number(s.reps))
     .filter((n) => Number.isFinite(n) && n > 0);
-  return { avgWeight: avg(weights), avgReps: avg(reps) };
+  return reps.length > 0 ? Math.max(...reps) : null;
 }
 
 function daysSince(dateString: string): number {
@@ -42,36 +96,69 @@ export function generateSuggestions(
     const lastEx = lastRun.exercises.find((e) => e.id === exercise.id);
     if (!lastEx || lastEx.sets.length === 0) continue;
 
-    const last = parseSets(lastEx.sets);
-    if (last.avgWeight === null || last.avgReps === null) continue;
+    const step = stepFor(exercise.equipment, exercise.muscle);
 
-    const weight = Math.round(last.avgWeight * 10) / 10;
-    const reps = Math.round(last.avgReps);
-
-    const prevEx = prevRun?.exercises.find((e) => e.id === exercise.id) ?? null;
-    const prev = prevEx ? parseSets(prevEx.sets) : null;
-
-    if (prev !== null && prev.avgReps !== null) {
-      const prevReps = Math.round(prev.avgReps);
-      if (reps <= prevReps - 2) {
+    // Rep-based movements (bodyweight, bands): progress by adding reps.
+    if (step === null) {
+      const best = bestRepsOf(lastEx.sets);
+      if (best !== null) {
         suggestions.push({
-          id: `rep-drop-${exercise.id}`,
-          message: `Your ${exercise.name} reps dropped (${prevReps}→${reps} reps). Keep ${weight}kg today.`,
+          id: `reps-${exercise.id}`,
+          message: `${exercise.name}: you got ${best} reps last time. Aim for ${best + 1} today.`,
         });
-        continue;
       }
+      continue;
     }
 
-    if (reps >= 10) {
-      const next = Math.round((weight + 2.5) * 10) / 10;
+    const top = topSetOf(lastEx.sets);
+    if (!top) continue;
+
+    // Reps fell noticeably at the same top weight vs the run before → rebuild first.
+    const prevEx = prevRun?.exercises.find((e) => e.id === exercise.id) ?? null;
+    const prevTop = prevEx ? topSetOf(prevEx.sets) : null;
+    if (
+      prevTop &&
+      prevTop.weight === top.weight &&
+      top.reps > 0 &&
+      top.reps <= prevTop.reps - 2
+    ) {
       suggestions.push({
-        id: `increase-${exercise.id}`,
-        message: `You hit ${reps} reps at ${weight}kg last time. Try ${next}kg today.`,
+        id: `rep-drop-${exercise.id}`,
+        message: `${exercise.name}: reps dropped (${prevTop.reps}→${top.reps}) at ${fmtKg(top.weight)}. Stay at ${fmtKg(top.weight)} and build the reps back up.`,
+      });
+      continue;
+    }
+
+    if (top.reps >= 10) {
+      // NSCA "2-for-2": earn the load increase by hitting the top of the rep
+      // range in two consecutive sessions at the same weight. If the previous
+      // session was at this weight but below the top, ask for one confirmation
+      // session before loading up.
+      const confirmed =
+        !prevTop || prevTop.weight !== top.weight || prevTop.reps >= 10;
+
+      if (confirmed) {
+        const next = nextWeight(top.weight, step);
+        suggestions.push({
+          id: `increase-${exercise.id}`,
+          message: `${exercise.name}: ${fmtKg(top.weight)} × ${top.reps} last time — you've earned it, load ${fmtKg(next)} today.`,
+        });
+      } else {
+        suggestions.push({
+          id: `confirm-${exercise.id}`,
+          message: `${exercise.name}: strong session at ${fmtKg(top.weight)} × ${top.reps}. Repeat it once more to lock it in, then move up.`,
+        });
+      }
+    } else if (top.reps > 0) {
+      // Inside the range → same weight, chase one more rep (double progression).
+      suggestions.push({
+        id: `match-${exercise.id}`,
+        message: `${exercise.name}: ${fmtKg(top.weight)} × ${top.reps} last time. Same weight, go for ${top.reps + 1}.`,
       });
     } else {
       suggestions.push({
         id: `match-${exercise.id}`,
-        message: `You lifted ${weight}kg for ${reps} reps last time. Try to match or beat it.`,
+        message: `${exercise.name}: you worked at ${fmtKg(top.weight)} last time. Match it and log your reps.`,
       });
     }
   }
