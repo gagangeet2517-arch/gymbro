@@ -16,6 +16,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GuidedWorkout from '../../components/GuidedWorkout';
 import PressableScale from '../../components/ui/PressableScale';
+import VoiceSetButton from '../../components/VoiceSetButton';
+import { ParsedSet } from '../../utils/voiceSetParser';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { Exercise, useExercises } from '../../context/ExerciseContext';
 import { useWorkout } from '../../context/WorkoutContext';
@@ -303,6 +305,7 @@ export default function ActiveWorkoutScreen() {
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
   const [finishSummary, setFinishSummary] = useState<FinishSummary | null>(null);
   const [guidedOpen, setGuidedOpen] = useState(false);
+  const [voiceNote, setVoiceNote] = useState<{ exerciseId: string; msg: string } | null>(null);
 
   // Warm-up / cool-down plans derived from the session's muscles. Keyed on a
   // joined string so the memo survives re-renders of the exercises array.
@@ -443,6 +446,9 @@ export default function ActiveWorkoutScreen() {
                       ? ` • Target: ${exercise.targetSets}×${exercise.targetReps}`
                       : ''}
                   </Text>
+                  {voiceNote?.exerciseId === exercise.id ? (
+                    <Text style={styles.voiceNoteText}>{voiceNote.msg}</Text>
+                  ) : null}
                   {exercise.prefilledFromLastWorkout &&
                   exercise.lastWorkoutSummary ? (
                     <Text style={styles.lastWorkoutText}>
@@ -451,14 +457,34 @@ export default function ActiveWorkoutScreen() {
                   ) : null}
                 </View>
 
-                <TouchableOpacity
-                  style={styles.removeExerciseBtn}
-                  activeOpacity={0.8}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  onPress={() => setPendingRemoveId(exercise.id)}
-                >
-                  <Ionicons name="close" size={16} color={COLORS.danger} />
-                </TouchableOpacity>
+                <View style={styles.exerciseHeaderActions}>
+                  <VoiceSetButton
+                    size={32}
+                    onStatus={(msg) =>
+                      setVoiceNote(msg ? { exerciseId: exercise.id, msg } : null)
+                    }
+                    onSet={(parsed: ParsedSet) => {
+                      const target = exercise.sets.find((s) => !s.done);
+                      if (!target) {
+                        setVoiceNote({ exerciseId: exercise.id, msg: 'All sets already done — add a set first' });
+                        return;
+                      }
+                      if (parsed.weight != null) {
+                        updateSetField(exercise.id, target.id, 'weight', String(parsed.weight));
+                      }
+                      updateSetField(exercise.id, target.id, 'reps', String(parsed.reps));
+                      toggleSetDone(exercise.id, target.id);
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={styles.removeExerciseBtn}
+                    activeOpacity={0.8}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => setPendingRemoveId(exercise.id)}
+                  >
+                    <Ionicons name="close" size={16} color={COLORS.danger} />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {exercise.sets.map((set, index) => (
@@ -898,6 +924,16 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 12,
     fontWeight: '700',
+  },
+  exerciseHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  voiceNoteText: {
+    color: COLORS.accent,
+    fontSize: 12,
+    marginTop: 4,
   },
   removeExerciseBtn: {
     width: 32,
