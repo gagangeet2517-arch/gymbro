@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import GuidedWorkout from '../../components/GuidedWorkout';
 import PressableScale from '../../components/ui/PressableScale';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { Exercise, useExercises } from '../../context/ExerciseContext';
@@ -301,6 +302,7 @@ export default function ActiveWorkoutScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
   const [finishSummary, setFinishSummary] = useState<FinishSummary | null>(null);
+  const [guidedOpen, setGuidedOpen] = useState(false);
 
   // Warm-up / cool-down plans derived from the session's muscles. Keyed on a
   // joined string so the memo survives re-renders of the exercises array.
@@ -414,9 +416,18 @@ export default function ActiveWorkoutScreen() {
             </View>
           ) : null}
 
-          <View style={styles.timerCard}>
-            <Text style={styles.timerLabel}>Workout in progress</Text>
-            <Text style={styles.timerValue}>Live session</Text>
+          <View style={[styles.timerCard, styles.timerCardRow]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.timerLabel}>Workout in progress</Text>
+              <Text style={styles.timerValue}>Live session</Text>
+            </View>
+            <PressableScale
+              style={styles.guideBtn}
+              onPress={() => setGuidedOpen(true)}
+            >
+              <Ionicons name="play" size={15} color="#07110A" />
+              <Text style={styles.guideBtnText}>Guide me</Text>
+            </PressableScale>
           </View>
 
           <MobilityCard emoji="🔥" title="Warm-up first" plan={warmupPlan} />
@@ -691,6 +702,15 @@ export default function ActiveWorkoutScreen() {
             setPickerOpen(false);
           }}
         />
+
+        <GuidedWorkout
+          visible={guidedOpen}
+          onClose={() => setGuidedOpen(false)}
+          onFinishRequested={() => {
+            setGuidedOpen(false);
+            setOverlayType('finish');
+          }}
+        />
       </View>
         <InputAccessoryView nativeID={KBD_ID}>
           <View style={styles.kbdBar}>
@@ -811,6 +831,25 @@ const styles = StyleSheet.create({
   },
   exerciseHeaderText: {
     flex: 1,
+  },
+  timerCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  guideBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.accent,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+  },
+  guideBtnText: {
+    color: '#07110A',
+    fontSize: 13,
+    fontWeight: '800',
   },
   mobilityCard: {
     backgroundColor: COLORS.surface,
