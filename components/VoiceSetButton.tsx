@@ -46,7 +46,7 @@ export default function VoiceSetButton({
       );
       onSet(parsed);
     } else {
-      onStatus(`Couldn't read "${transcript}" — try "sixty for eight"`);
+      onStatus(`Couldn't read "${transcript}" — try "sixty by eight"`);
     }
   });
 
@@ -75,7 +75,7 @@ export default function VoiceSetButton({
     myId.current = ++ownerSeq;
     activeOwner = myId.current;
     setListening(true);
-    onStatus('Listening… say "sixty for eight"');
+    onStatus('Listening… say "sixty by eight"');
     // Prefer fully on-device recognition (offline, private, no quota of any
     // kind); fall back to Apple's dictation service when the device lacks the
     // local model — still zero Gemini usage either way.
@@ -88,6 +88,9 @@ export default function VoiceSetButton({
       interimResults: true,
       continuous: false,
       requiresOnDeviceRecognition: onDevice,
+      // Bias toward set-logging vocabulary — reduces "for" being merged into
+      // the numbers ("sixty for eight" → "6048").
+      contextualStrings: ['by', 'for', 'reps', 'kilos', 'kg', 'bodyweight'],
     });
   };
 
