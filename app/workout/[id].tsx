@@ -15,8 +15,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GuidedWorkout from '../../components/GuidedWorkout';
+import FeatureHint from '../../components/ui/FeatureHint';
 import PressableScale from '../../components/ui/PressableScale';
 import VoiceSetButton from '../../components/VoiceSetButton';
+import { markFeatureSeen } from '../../utils/featureHints';
 import { ParsedSet } from '../../utils/voiceSetParser';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { Exercise, useExercises } from '../../context/ExerciseContext';
@@ -246,7 +248,10 @@ function MobilityCard({
       <TouchableOpacity
         style={styles.mobilityHeader}
         activeOpacity={0.8}
-        onPress={() => setOpen((v) => !v)}
+        onPress={() => {
+          setOpen((v) => !v);
+          markFeatureSeen('mobility-plan');
+        }}
       >
         <Text style={styles.mobilityEmoji}>{emoji}</Text>
         <View style={{ flex: 1 }}>
@@ -419,6 +424,20 @@ export default function ActiveWorkoutScreen() {
             </View>
           ) : null}
 
+          <FeatureHint
+            id="guided-mode"
+            icon="play-circle-outline"
+            title="New: Guided mode"
+            body="Follow your workout one set at a time with a built-in rest timer between sets. Tap Guide me to try it."
+          />
+
+          <FeatureHint
+            id="voice-logging"
+            icon="mic-outline"
+            title="New: log sets by voice"
+            body='Tap the mic on any exercise and say your set, e.g. "sixty by eight" — it fills in the weight and reps for you.'
+          />
+
           <View style={[styles.timerCard, styles.timerCardRow]}>
             <View style={{ flex: 1 }}>
               <Text style={styles.timerLabel}>Workout in progress</Text>
@@ -426,7 +445,10 @@ export default function ActiveWorkoutScreen() {
             </View>
             <PressableScale
               style={styles.guideBtn}
-              onPress={() => setGuidedOpen(true)}
+              onPress={() => {
+                setGuidedOpen(true);
+                markFeatureSeen('guided-mode');
+              }}
             >
               <Ionicons name="play" size={15} color="#07110A" />
               <Text style={styles.guideBtnText}>Guide me</Text>
@@ -559,9 +581,19 @@ export default function ActiveWorkoutScreen() {
             </View>
           ))}
 
+          <FeatureHint
+            id="add-exercise-midworkout"
+            icon="add-circle-outline"
+            title="Adjust on the fly"
+            body="Missing an exercise the gym doesn't have equipment for, or want to add one? Tap Add Exercise to change today's session without editing the template."
+          />
+
           <PressableScale
             style={styles.addExerciseButton}
-            onPress={() => setPickerOpen(true)}
+            onPress={() => {
+              setPickerOpen(true);
+              markFeatureSeen('add-exercise-midworkout');
+            }}
           >
             <Ionicons name="add-circle-outline" size={18} color={COLORS.accent} />
             <Text style={styles.addExerciseButtonText}>Add Exercise</Text>

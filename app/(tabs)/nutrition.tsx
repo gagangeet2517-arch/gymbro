@@ -40,9 +40,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Rect } from 'react-native-svg';
+import FeatureHint from '../../components/ui/FeatureHint';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { DailyTargets, MealEntry, SavedFoodItem, useNutrition } from '../../context/NutritionContext';
 import { formatDayLabel, toDateKey } from '../../utils/dateHelpers';
+import { markFeatureSeen } from '../../utils/featureHints';
 import { FoodItem, FoodVisionError, FoodVisionResult, analyzeFoodPhoto, queryFoodText, recomputeTotals } from '../../utils/foodVision';
 import { loadUserGeminiKey } from '../../utils/userApiKey';
 
@@ -1610,17 +1612,35 @@ export default function NutritionScreen() {
         )}
 
         {/* Add Meal Buttons */}
+        <FeatureHint
+          id="nutrition-ai-logging"
+          icon="sparkles-outline"
+          title="AI-powered meal logging"
+          body="Take a photo or scan a barcode and the AI estimates calories and macros for you. Add a free Gemini key in Profile if you haven't yet."
+        />
         <View style={s.addCol}>
-          <TouchableOpacity style={s.addBtnPrimary} activeOpacity={0.85} onPress={() => launchPicker('camera')}>
+          <TouchableOpacity
+            style={s.addBtnPrimary}
+            activeOpacity={0.85}
+            onPress={() => { launchPicker('camera'); markFeatureSeen('nutrition-ai-logging'); }}
+          >
             <Ionicons name="camera-outline" size={22} color="#071109" />
             <Text style={s.addBtnPrimaryText}>Take Photo</Text>
           </TouchableOpacity>
           <View style={s.addRow}>
-            <TouchableOpacity style={s.addBtnSecondary} activeOpacity={0.85} onPress={() => setShowBarcode(true)}>
+            <TouchableOpacity
+              style={s.addBtnSecondary}
+              activeOpacity={0.85}
+              onPress={() => { setShowBarcode(true); markFeatureSeen('nutrition-ai-logging'); }}
+            >
               <Ionicons name="barcode-outline" size={20} color={C.textSub} />
               <Text style={s.addBtnSecondaryText}>Scan Barcode</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.addBtnSecondary} activeOpacity={0.85} onPress={() => launchPicker('library')}>
+            <TouchableOpacity
+              style={s.addBtnSecondary}
+              activeOpacity={0.85}
+              onPress={() => { launchPicker('library'); markFeatureSeen('nutrition-ai-logging'); }}
+            >
               <Ionicons name="images-outline" size={20} color={C.textSub} />
               <Text style={s.addBtnSecondaryText}>Photo Library</Text>
             </TouchableOpacity>

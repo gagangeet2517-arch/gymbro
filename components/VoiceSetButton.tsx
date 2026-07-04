@@ -5,6 +5,7 @@ import {
 } from 'expo-speech-recognition';
 import React, { useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity } from 'react-native';
+import { markFeatureSeen } from '../utils/featureHints';
 import { ParsedSet, parseSetPhrase } from '../utils/voiceSetParser';
 
 // Only one recognition session exists at a time; module-level owner id makes
@@ -63,6 +64,7 @@ export default function VoiceSetButton({
   });
 
   const toggle = async () => {
+    markFeatureSeen('voice-logging');
     if (listening) {
       ExpoSpeechRecognitionModule.stop();
       return;
