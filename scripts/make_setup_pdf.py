@@ -277,7 +277,12 @@ def build():
     s.append(bullets([
         '<b>Workouts tab</b> — start from a template (Push / Pull / Legs / Upper). gymbro pre-fills '
         'the weights and reps from your last session so you can focus on beating them. You can add or '
-        'remove exercises mid-workout.',
+        'remove exercises mid-workout, and a warm-up / cool-down checklist is built in for every session.',
+        '<b>Guided mode</b> — tap <b>Guide me</b> during a workout for a one-set-at-a-time view with a '
+        'built-in rest timer between sets.',
+        '<b>Voice logging</b> — tap the mic on any exercise (or in guided mode) and say your set, e.g. '
+        '"sixty by eight" — it fills in the weight and reps for you. Runs on your phone\'s own speech '
+        'engine, not the AI key, so it works offline and costs nothing.',
         '<b>Nutrition tab</b> — photograph your plate, speak your meal, or scan a barcode. Late-night '
         'meals (after midnight) ask whether they count toward yesterday or today.',
         '<b>Progress tab</b> — log bodyweight and body fat %; charts for strength, volume, and body '
@@ -288,6 +293,10 @@ def build():
     ]))
     s.append(callout('Reminders ask for notification permission the first time you enable one — tap '
                      'Allow. If reminders never appear, check iPhone Settings → gymbro → Notifications.'))
+    s.append(callout('The app explains itself as you go: the first time you reach a feature like guided '
+                     'mode, voice logging, or reminders, a small dismissible card appears describing what '
+                     'it does. It only shows once per feature and disappears for good once you try it or '
+                     'tap the ✕.'))
 
     # ── 10. Troubleshooting ──
     s.append(heading('10. Troubleshooting'))

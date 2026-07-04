@@ -22,6 +22,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import FeatureHint from '../../components/ui/FeatureHint';
 import PressableScale from '../../components/ui/PressableScale';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { useNutrition } from '../../context/NutritionContext';
@@ -44,6 +45,7 @@ import {
   computeGoalTargets,
   computeMaintenanceCal,
 } from '../../utils/nutritionGoals';
+import { markFeatureSeen } from '../../utils/featureHints';
 import { syncReminders } from '../../utils/reminders';
 import { loadUserGeminiKey, setUserGeminiKey } from '../../utils/userApiKey';
 
@@ -1497,12 +1499,22 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
           {/* ── Goals ── */}
           <Text style={[ps.sectionLabel, { marginTop: 20 }]}>Goals</Text>
 
+          <FeatureHint
+            id="goal-dropdown"
+            icon="flag-outline"
+            title="Set a training goal"
+            body="Fat loss, lean bulk, maintenance, or recomp — it tunes your starter templates' sets/reps and computes nutrition targets automatically."
+          />
+
           {/* Training goal dropdown */}
           <DropdownHeader
             label="Training goal"
             value={selectedGoal ? GOAL_META[selectedGoal].label : 'Not set — tap to choose'}
             open={goalOpen}
-            onPress={() => toggleSection(setGoalOpen)}
+            onPress={() => {
+              toggleSection(setGoalOpen);
+              markFeatureSeen('goal-dropdown');
+            }}
           />
           {goalOpen && (
             <View style={[ps.goalGrid, { marginTop: 10 }]}>
@@ -1574,6 +1586,12 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
           ) : null}
 
           {/* Other goals dropdown — lifestyle goals + reminders */}
+          <FeatureHint
+            id="other-goals-reminders"
+            icon="notifications-outline"
+            title="Habits & reminders"
+            body="Track hydration, steps, sleep, or consistency, and set a daily or long-term reminder with your own message — it'll show up as a notification."
+          />
           <View style={{ marginTop: 10 }}>
             <DropdownHeader
               label="Other goals"
@@ -1582,7 +1600,10 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
                 ` · ${[dailyRem.enabled && 'daily', longRem.enabled && 'long-term'].filter(Boolean).join(' + ') || 'no reminders'}`
               }
               open={otherOpen}
-              onPress={() => toggleSection(setOtherOpen)}
+              onPress={() => {
+                toggleSection(setOtherOpen);
+                markFeatureSeen('other-goals-reminders');
+              }}
             />
           </View>
           {otherOpen && (
