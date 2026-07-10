@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Generate SETUP.pdf — the gymbro install guide for users.
+"""Generate SETUP.pdf — the gymbro install guide for complete beginners.
 
-This guide is written for people who want to USE the app on their own
-iPhone (install it, live with the 7-day free-signing cycle, reinstall),
-not for developers. Edit the content here and re-run
+Written for someone who has never opened Terminal or heard of Xcode:
+every click and every typed line is spelled out, in order, with what to
+expect at each step. Edit the content here and re-run
 `python3 scripts/make_setup_pdf.py` to regenerate SETUP.pdf.
 """
 
@@ -18,7 +18,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-# ── Palette (matches the original manual) ──────────────────────────────────────
+# ── Palette ────────────────────────────────────────────────────────────────────
 BLUE = HexColor('#2563EB')
 INK = HexColor('#111111')
 GRAY = HexColor('#555555')
@@ -42,7 +42,6 @@ h2 = ParagraphStyle('h2', parent=styles['Heading2'], fontName='Helvetica-Bold',
 note = ParagraphStyle('note', parent=body, fontSize=9.5, leading=13, textColor=HexColor('#6b5d20'))
 bullet = ParagraphStyle('bullet', parent=body, spaceAfter=4)
 
-# Title-page styles
 t_big = ParagraphStyle('t_big', parent=styles['Title'], fontName='Helvetica-Bold',
                        fontSize=52, leading=58, textColor=BLUE, alignment=TA_CENTER)
 t_sub = ParagraphStyle('t_sub', parent=styles['Title'], fontName='Helvetica-Bold',
@@ -108,7 +107,6 @@ def para(text):
     return Paragraph(text, body)
 
 
-# ── Page furniture (header rule + footer URL + page number) ─────────────────────
 def later_page(canvas, doc):
     canvas.saveState()
     w, h = A4
@@ -149,185 +147,238 @@ def build():
     s.append(Paragraph('gymbro', t_big))
     s.append(Paragraph('Install Guide', t_sub))
     s.append(Spacer(1, 18))
-    s.append(Paragraph('Get the workout tracker onto your own iPhone', t_desc))
-    s.append(Paragraph('and keep it running — no App Store needed.', t_desc))
+    s.append(Paragraph('Get the workout tracker onto your own iPhone —', t_desc))
+    s.append(Paragraph('written for complete beginners. Every click is spelled out.', t_desc))
     s.append(Spacer(1, 230))
     s.append(Paragraph('Repository:', t_repo))
     s.append(Paragraph(REPO_URL, t_link))
     s.append(Spacer(1, 8))
-    s.append(Paragraph('Free to install with any Apple ID · your data stays on your phone', t_repo))
+    s.append(Paragraph('Free to install with any Apple ID · no programming knowledge needed', t_repo))
     s.append(NextPageTemplate('later'))
     s.append(PageBreak())
 
-    # ── 1. What is gymbro? ──
-    s.append(heading('1. What is gymbro?'))
-    s.append(para('gymbro is a personal workout and nutrition tracker. You log workouts from '
-                  'ready-made templates, snap photos of meals to count calories with AI, and watch '
-                  'your strength and bodyweight trends on charts. Everything is stored on your phone — '
-                  'no account, no sign-up, no cloud.'))
-    s.append(para('Because gymbro is not on the App Store, you install it yourself from a Mac using a '
-                  'free Apple ID. The install lasts <b>7 days</b>, then the app stops opening until you '
-                  're-run one command to refresh it (your data is never lost). This guide covers the '
-                  'one-time setup, the install, and the weekly refresh.'))
+    # ── 1 ──
+    s.append(heading('1. What is gymbro, and what are we about to do?'))
+    s.append(para('gymbro is a personal workout and nutrition tracker: log workouts from ready-made '
+                  'plans, snap photos of meals to count calories with AI, speak your sets out loud, '
+                  'and watch your strength grow on charts. Everything stays on your phone — no '
+                  'account, no cloud.'))
+    s.append(para('Because gymbro is not on the App Store, you install it yourself using a Mac. '
+                  'Don\'t worry if you have never done anything like this: this guide assumes zero '
+                  'experience and walks through every single click. The one-time setup takes about '
+                  'an hour (mostly waiting for downloads). After that, keeping the app running takes '
+                  'two minutes a week.'))
 
-    # ── 2. What you need ──
+    # ── 2 ──
     s.append(heading('2. What you need'))
     s.append(bullets([
-        '<b>A Mac</b> — any Apple-silicon or recent Intel Mac.',
-        '<b>Xcode</b> — free, from the Mac App Store (large download, ~1 hour first time).',
-        '<b>Node.js</b> — free, from nodejs.org (choose the LTS installer).',
-        '<b>Your iPhone + a USB cable</b>.',
-        '<b>An Apple ID</b> — the free one you already have is enough. No paid developer account.',
-        'About <b>30–40 minutes</b> for the one-time setup. After that, reinstalls take ~3 minutes.',
+        '<b>A Mac</b> (any reasonably recent MacBook or iMac).',
+        '<b>Your iPhone</b> and its <b>charging cable</b> (it must connect to the Mac).',
+        '<b>An Apple ID</b> — the normal, free one you already use for the App Store.',
+        '<b>About 15 GB of free disk space</b> on the Mac (the Apple developer tools are big).',
+        'About <b>an hour</b>, most of it waiting for downloads.',
+    ]))
+    s.append(callout('You do NOT need: a paid developer account, programming knowledge, or an '
+                     'Android phone (this guide is iPhone-only).'))
+
+    # ── 3 ──
+    s.append(heading('3. Sixty seconds of background (worth reading)'))
+    s.append(sub('3.1  What is "Terminal"?'))
+    s.append(para('Terminal is an app that comes with every Mac. Instead of clicking buttons, you '
+                  'type a line of text and press <b>Enter</b> (Return), and the Mac carries out that '
+                  'instruction. That\'s the whole idea. You type a line — exactly as written in this '
+                  'guide — press Enter, and wait until new text stops appearing and you see the '
+                  'blinking cursor again. Then you type the next line.'))
+    s.append(para('To open it: press <b>⌘ (Command) + Spacebar</b>, type <b>terminal</b>, press Enter.'))
+    s.append(sub('3.2  What does "cd" mean?'))
+    s.append(para('Terminal is always "standing inside" one folder, and commands act on that folder. '
+                  '<font face="Courier">cd</font> (change directory) is how you walk into a folder. So '
+                  '<font face="Courier">cd ~/Desktop/gymbro-main</font> means: "go into the gymbro-main '
+                  'folder on my Desktop". A trick that avoids typos: type '
+                  '<font face="Courier">cd&nbsp;</font> (with a space), then drag the folder from Finder '
+                  'into the Terminal window — the path fills itself in — then press Enter.'))
+    s.append(sub('3.3  What are Xcode, Node, and the rest?'))
+    s.append(bullets([
+        '<b>Xcode</b> — Apple\'s free app for building iPhone apps. We use it to sign and install gymbro.',
+        '<b>Node.js</b> — a free program that runs the app\'s build tools.',
+        '<b>Homebrew &amp; CocoaPods</b> — two small helper tools the build needs. Installed with one '
+        'pasted line each.',
     ]))
 
-    # ── 3. One-time: get the app onto your Mac ──
-    s.append(heading('3. One-time setup — get the code onto your Mac'))
+    # ── 4 ──
+    s.append(heading('4. One-time: install the tools (≈45 min, mostly waiting)'))
+    s.append(sub('4.1  Install Xcode'))
     s.append(steps([
-        'Install <b>Xcode</b> from the Mac App Store, open it once, and accept the licence.',
-        'Install <b>Node.js</b> (LTS) from nodejs.org.',
-        'Open the <b>Terminal</b> app (press ⌘-Space, type "Terminal", press Enter).',
-        'Copy-paste these three lines one at a time, pressing Enter after each:',
+        'Open the <b>App Store</b> app on the Mac.',
+        'Search for <b>Xcode</b>, click <b>Get</b>, then <b>Install</b>. It is a very large download '
+        '(often 30–60 minutes) — start it and move on to step 4.2 while it downloads.',
+        'When it finishes, <b>open Xcode once</b>. Click <b>Agree</b> on the licence, let it '
+        '"install components" if it asks, then you can close it.',
     ]))
-    s.append(code('git clone https://github.com/gagangeet2517-arch/gymbro.git\n'
-                  'cd gymbro\n'
-                  'npm install'))
-    s.append(callout('Type or paste each line exactly. The most common beginner mistake is running a '
-                     'folder path on its own (for example dragging the folder into Terminal and pressing '
-                     'Enter) — that gives <font face="Courier">permission denied</font>. Always start '
-                     'with <font face="Courier">cd</font> followed by a space to move into a folder.'))
-
-    # ── 4. One-time: signing ──
-    s.append(heading('4. One-time setup — connect your Apple ID and iPhone'))
-    s.append(para('Apple requires every app on a real iPhone to be "signed". You do this once in Xcode:'))
+    s.append(sub('4.2  Install Node.js'))
     s.append(steps([
-        'In Terminal, run <font face="Courier">open ios/gymbro.xcworkspace</font> — Xcode opens the project.',
-        'Xcode menu → <b>Settings → Accounts</b> → "+" → sign in with your Apple ID.',
-        'Click the blue <b>gymbro</b> icon in the left sidebar, open the '
-        '<b>Signing &amp; Capabilities</b> tab, tick <b>Automatically manage signing</b>, and pick '
-        'your name under <b>Team</b>.',
-        'Plug in your iPhone with the cable, unlock it, and tap <b>Trust</b> when the phone asks.',
-        'On the iPhone, turn on <b>Settings → Privacy &amp; Security → Developer Mode</b> '
-        '(the phone restarts once).',
+        'In a web browser, go to <b>nodejs.org</b>.',
+        'Click the big green <b>LTS</b> download button (the version number doesn\'t matter).',
+        'Open the downloaded <font face="Courier">.pkg</font> file and click '
+        '<b>Continue → Continue → Agree → Install</b>. Enter your Mac password when asked.',
     ]))
-    s.append(para('Then find your phone\'s device id — run this in Terminal:'))
-    s.append(code('xcrun devicectl list devices'))
-    s.append(para('Copy the long <b>Identifier</b> shown for your phone. Open the file '
-                  '<font face="Courier">package.json</font> in the gymbro folder (double-click opens '
-                  'TextEdit), find the <font face="Courier">deploy:iphone</font> line, and replace the '
-                  'device id (the long code after <font face="Courier">id=</font>, it appears twice) with '
-                  'yours. Replace the <font face="Courier">DEVELOPMENT_TEAM</font> value with your own '
-                  'team id — Xcode shows it under Signing &amp; Capabilities after you pick your team.'))
+    s.append(sub('4.3  Install Homebrew, then CocoaPods'))
+    s.append(para('Open Terminal (⌘+Space → "terminal" → Enter). Copy-paste this whole line, press '
+                  'Enter, type your Mac password when asked (the password stays invisible while you '
+                  'type — that\'s normal), and follow any "press RETURN to continue" prompts:'))
+    s.append(code('/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'))
+    s.append(para('When Homebrew finishes it may print a box saying <b>"Next steps"</b> with two '
+                  'commands to run — copy-paste those two lines too (they connect Homebrew to your '
+                  'Terminal). Then install CocoaPods:'))
+    s.append(code('brew install cocoapods'))
+    s.append(callout('If a command replies "command not found: brew", you skipped the "Next steps" '
+                     'lines above — scroll up in Terminal, find them, and run them. Then close '
+                     'Terminal, reopen it, and try again.'))
 
-    # ── 5. Install ──
-    s.append(heading('5. Install the app on your iPhone'))
-    s.append(para('Phone plugged in and unlocked? This is the whole thing:'))
-    s.append(code('cd ~/Desktop/gymbro        # or wherever you cloned it\nnpm run deploy:iphone'))
-    s.append(para('The first build takes several minutes. When it finishes you will see '
-                  '<b>"App installed"</b> and gymbro appears on your home screen. Open it, swipe through '
-                  'the welcome tour, and you are in.'))
-    s.append(callout('First launch only: if the icon shows an "Untrusted Developer" message, go to '
-                     'iPhone <b>Settings → General → VPN &amp; Device Management</b>, tap your Apple ID '
-                     'and tap <b>Trust</b>. Then open the app again.'))
+    # ── 5 ──
+    s.append(heading('5. Get the app\'s code (2 minutes)'))
+    s.append(para('The easiest way — no extra tools needed:'))
+    s.append(steps([
+        f'In a browser, go to <b>{REPO_URL}</b>.',
+        'Click the green <b>&lt;&gt; Code</b> button, then <b>Download ZIP</b>.',
+        'Open your <b>Downloads</b> folder and double-click <font face="Courier">gymbro-main.zip</font> '
+        '— it unzips into a folder called <b>gymbro-main</b>.',
+        'Drag the <b>gymbro-main</b> folder onto your <b>Desktop</b>.',
+    ]))
+    s.append(callout('That folder IS the app. Don\'t rename it or move things around inside it. '
+                     '(If a techie friend set you up with "git clone" instead, your folder is called '
+                     '<b>gymbro</b>, not gymbro-main — use that name in the commands below.)'))
 
-    # ── 6. The 7-day rule ──
-    s.append(heading('6. The 7-day rule (important!)'))
-    s.append(para('Apps signed with a free Apple ID stop launching after <b>7 days</b>. This is an Apple '
-                  'restriction, not a bug. When gymbro suddenly refuses to open:'))
+    # ── 6 ──
+    s.append(heading('6. Prepare the project (10 minutes, two commands)'))
+    s.append(para('In Terminal, go into the app folder:'))
+    s.append(code('cd ~/Desktop/gymbro-main'))
+    s.append(para('Now run these two commands, <b>one at a time</b>, waiting for each to finish. The '
+                  'first downloads the app\'s building blocks (2–5 minutes, prints a lot of text — '
+                  'warnings are normal). The second generates the iPhone project (a few more minutes):'))
+    s.append(code('npm install\nnpx expo prebuild -p ios'))
+    s.append(para('You\'re done when the cursor is blinking again with no error in red. A new '
+                  '<b>ios</b> folder now exists inside gymbro-main.'))
+
+    # ── 7 ──
+    s.append(heading('7. Connect your Apple ID (5 minutes, one time)'))
+    s.append(para('Apple requires every iPhone app to be "signed" by someone. You\'ll sign it with '
+                  'your own free Apple ID. In Terminal:'))
+    s.append(code('open ios/gymbro.xcworkspace'))
+    s.append(para('Xcode opens. Then:'))
+    s.append(steps([
+        'Menu bar → <b>Xcode → Settings</b> (or Preferences) → <b>Accounts</b> tab.',
+        'Click the <b>+</b> in the bottom-left → <b>Apple ID</b> → sign in. Close Settings.',
+        'In the left sidebar, click the blue <b>gymbro</b> icon at the very top.',
+        'In the middle of the window, click the <b>Signing &amp; Capabilities</b> tab.',
+        'Tick <b>Automatically manage signing</b>, and under <b>Team</b> choose your own name '
+        '("Personal Team").',
+        'If a red error says the bundle identifier is <b>"not available"</b>: click in the '
+        '<b>Bundle Identifier</b> box just above and change it to something personal, e.g. '
+        '<font face="Courier">com.yourfirstname.gymbro</font>. The error disappears.',
+    ]))
+
+    # ── 8 ──
+    s.append(heading('8. Put gymbro on your iPhone'))
+    s.append(sub('8.1  Prepare the phone (one time)'))
+    s.append(steps([
+        'Plug the iPhone into the Mac with the cable and <b>unlock it</b>.',
+        'If the phone shows <b>"Trust This Computer?"</b> → tap <b>Trust</b>, enter your passcode.',
+        'On the phone: <b>Settings → Privacy &amp; Security</b> → scroll to the very bottom → '
+        '<b>Developer Mode</b> → turn it <b>On</b> → the phone restarts → unlock it and confirm.',
+    ]))
+    s.append(callout('Can\'t find Developer Mode? It sometimes only appears AFTER the first install '
+                     'attempt. Do step 8.2 once, let it fail, then check Settings again — it will be there.'))
+    s.append(sub('8.2  Install'))
+    s.append(steps([
+        'In Xcode, look at the toolbar at the top. Next to the play button there is a device menu — '
+        'click it and choose <b>your iPhone</b> (it\'s listed by name, above the simulators).',
+        'Press the <b>▶ (play) button</b> in the top-left.',
+        'The first build takes 5–10 minutes. When it finishes, <b>gymbro appears on your iPhone</b>.',
+        'First open only: if the phone says <b>"Untrusted Developer"</b> → on the phone go to '
+        '<b>Settings → General → VPN &amp; Device Management</b> → tap your Apple ID → <b>Trust</b>. '
+        'Open the app again.',
+    ]))
+    s.append(para('That\'s it. The app greets you with a short welcome tour, and small green cards '
+                  'explain each feature the first time you reach it.'))
+
+    # ── 9 ──
+    s.append(heading('9. The 7-day rule (read this!)'))
+    s.append(para('Apps signed with a free Apple ID stop opening after <b>7 days</b>. This is an '
+                  'Apple restriction, not a bug. When gymbro suddenly won\'t open:'))
     s.append(steps([
         'Plug the iPhone into the Mac and unlock it.',
-        'Open Terminal and run the same two lines as always:',
+        'Open Xcode (your project reopens via <b>File → Recent</b>), make sure your iPhone is '
+        'selected in the device menu, and press <b>▶</b> again.',
     ]))
-    s.append(code('cd ~/Desktop/gymbro\nnpm run deploy:iphone'))
-    s.append(para('That refreshes the app for another 7 days. <b>All your workouts, meals, and settings '
-                  'survive every reinstall</b> — the data lives in the app\'s own storage on the phone '
-                  'and reinstalling on top never wipes it.'))
+    s.append(para('Two minutes, and the app runs for another 7 days. <b>Your workouts, meals, and '
+                  'settings are never lost</b> — reinstalling on top keeps all data.'))
 
-    # ── 7. After an iPhone or Mac update ──
-    s.append(heading('7. After an iPhone (or Mac) software update'))
-    s.append(para('System updates can break the developer connection between phone and Mac. Symptoms: '
-                  'the app stops opening early, or the install command fails saying the device is '
-                  '<b>unavailable</b>. Fix, in order:'))
+    # ── 10 ──
+    s.append(heading('10. Turn on the AI features (optional, free)'))
+    s.append(para('Photo food scanning and the nutrition coach use Google Gemini and need a free key:'))
     s.append(steps([
-        'Plug the phone in with the cable and keep it <b>unlocked</b>.',
-        'Tap <b>Trust</b> if the phone asks again after the update.',
-        'Check <b>Settings → Privacy &amp; Security → Developer Mode</b> is still ON '
-        '(updates sometimes switch it off; the phone reboots when you re-enable it).',
-        'Run <font face="Courier">xcrun devicectl list devices</font> — your phone should say '
-        '<b>available (paired)</b>. Then run the usual '
-        '<font face="Courier">npm run deploy:iphone</font>.',
+        'On any device, go to <b>aistudio.google.com/apikey</b>, sign in with a Google account, '
+        'click <b>Create API key</b>, and copy it.',
+        'In gymbro: <b>Home tab → Profile → AI features · Gemini key</b> → paste → <b>Save profile</b>.',
+        'The status line says <b>"Using your key"</b> — done. The key never leaves your phone.',
     ]))
 
-    # ── 8. AI features ──
-    s.append(heading('8. Turn on the AI features (optional, free)'))
-    s.append(para('Photo food scanning, voice meal logging, and the nutrition coach use Google Gemini. '
-                  'They need a free key — one minute to set up:'))
-    s.append(steps([
-        'On any device, go to <b>aistudio.google.com/apikey</b>, sign in with a Google account, and '
-        'create an API key. Copy it.',
-        'In gymbro: <b>Home tab → tap your Profile</b>.',
-        'Scroll to <b>AI features · Gemini key</b>, paste the key, tap <b>Save profile</b>.',
-        'The status line changes to <b>"Using your key"</b> — AI features are now on.',
-    ]))
-    s.append(callout('If photo scan or the coach say "Add your Google Gemini API key in Profile", this '
-                     'step has not been done yet. The key is stored only on your phone.'))
-
-    # ── 9. Using the app ──
-    s.append(heading('9. Quick tour — getting the most out of gymbro'))
+    # ── 11 ──
+    s.append(heading('11. Quick tour — what the app can do'))
     s.append(bullets([
-        '<b>Workouts tab</b> — start from a template (Push / Pull / Legs / Upper). gymbro pre-fills '
-        'the weights and reps from your last session so you can focus on beating them. You can add or '
-        'remove exercises mid-workout, and a warm-up / cool-down checklist is built in for every session.',
-        '<b>Guided mode</b> — tap <b>Guide me</b> during a workout for a one-set-at-a-time view with a '
-        'built-in rest timer between sets.',
-        '<b>Voice logging</b> — tap the mic on any exercise (or in guided mode) and say your set, e.g. '
-        '"sixty by eight" — it fills in the weight and reps for you. Runs on your phone\'s own speech '
-        'engine, not the AI key, so it works offline and costs nothing.',
-        '<b>Nutrition tab</b> — photograph your plate, speak your meal, or scan a barcode. Late-night '
-        'meals (after midnight) ask whether they count toward yesterday or today.',
-        '<b>Progress tab</b> — log bodyweight and body fat %; charts for strength, volume, and body '
-        'trends fill in automatically. Finishing a workout shows calories burned.',
-        '<b>Home tab → Profile</b> — set your <b>Training goal</b> (fat loss / lean bulk / maintenance / '
-        'recomp: it tunes templates and nutrition targets), pick habit goals, and set <b>reminders</b>: '
-        'a daily one and a long-term one with your own goal text (for example "Lose 5 kg by August 1st").',
+        '<b>Workouts tab</b> — start from a ready-made plan; your weights and reps from last time are '
+        'pre-filled so you just try to beat them. Add/remove exercises mid-workout; a warm-up and '
+        'cool-down checklist is generated for every session.',
+        '<b>Guide me</b> — a coach mode that walks you through one set at a time with a rest timer.',
+        '<b>Voice logging</b> — tap the mic and say "sixty by eight"; the set logs itself. Works '
+        'offline, costs nothing.',
+        '<b>Nutrition tab</b> — photograph your plate or scan a barcode; the AI counts calories and '
+        'protein. Late-night meals ask whether they belong to yesterday or today.',
+        '<b>Progress tab</b> — bodyweight, body fat %, and strength charts fill in automatically, with '
+        'research-based insights (plateaus, volume spikes, neglected muscles).',
+        '<b>Profile (Home tab)</b> — pick a training goal (it tunes plans and calorie targets), habit '
+        'goals, and daily / long-term reminders with your own message.',
     ]))
-    s.append(callout('Reminders ask for notification permission the first time you enable one — tap '
-                     'Allow. If reminders never appear, check iPhone Settings → gymbro → Notifications.'))
-    s.append(callout('The app explains itself as you go: the first time you reach a feature like guided '
-                     'mode, voice logging, or reminders, a small dismissible card appears describing what '
-                     'it does. It only shows once per feature and disappears for good once you try it or '
-                     'tap the ✕.'))
+    s.append(callout('The app explains itself as you go: the first time you reach a feature, a small '
+                     'dismissible card describes it. It shows once and disappears after you use the '
+                     'feature or tap ✕.'))
 
-    # ── 10. Troubleshooting ──
-    s.append(heading('10. Troubleshooting'))
-    s.append(sub('10.1  Terminal says "permission denied"'))
+    # ── 12 ──
+    s.append(heading('12. When something goes wrong'))
+    s.append(sub('12.1  Terminal says "command not found: npm" (or brew, or npx)'))
+    s.append(para('The tool from section 4 isn\'t installed or Terminal hasn\'t noticed it yet. '
+                  'Close Terminal completely (⌘Q), reopen it, try again. Still failing → redo the '
+                  'relevant part of section 4.'))
+    s.append(sub('12.2  Terminal says "permission denied" or "no such file or directory"'))
+    s.append(para('Almost always a path problem. Use the drag-trick: type '
+                  '<font face="Courier">cd&nbsp;</font> (with a space), drag the gymbro-main folder from '
+                  'Finder into the Terminal window, press Enter. Never run a folder path on its own '
+                  'without <font face="Courier">cd</font> in front.'))
+    s.append(sub('12.3  Xcode: "bundle identifier not available" / signing errors'))
+    s.append(para('Section 7, last step — change the Bundle Identifier to '
+                  '<font face="Courier">com.yourname.gymbro</font> and re-pick your Team.'))
+    s.append(sub('12.4  Xcode can\'t see my iPhone'))
     s.append(bullets([
-        'You probably ran a folder path as a command (for example by dragging the folder into '
-        'Terminal). Use <font face="Courier">cd&nbsp;</font> + the folder, then the npm command, as two '
-        'separate lines.',
-        'If it says "Operation not permitted" instead: System Settings → Privacy &amp; Security → '
-        '<b>Files and Folders → Terminal</b> → allow <b>Desktop Folder</b>, then quit and reopen Terminal.',
+        'Unlock the phone and keep it unlocked; check the cable is properly in.',
+        'Tap <b>Trust</b> if the phone asks (again — iOS updates re-ask).',
+        'Check <b>Developer Mode</b> is On (section 8.1) — iOS updates sometimes switch it off.',
+        'Still nothing → unplug, replug, wait 30 seconds.',
     ]))
-    s.append(sub('10.2  The app icon does nothing / app will not open'))
-    s.append(para('The 7-day signature has expired. Reinstall (section 6). Your data is safe.'))
-    s.append(sub('10.3  "Untrusted Developer" when opening the app'))
-    s.append(para('iPhone Settings → General → VPN &amp; Device Management → tap your Apple ID → Trust.'))
-    s.append(sub('10.4  Install fails / device "unavailable"'))
-    s.append(para('The phone-to-Mac developer link dropped (common after updates). Follow section 7.'))
-    s.append(sub('10.5  Build fails with a signing error'))
-    s.append(para('Open <font face="Courier">ios/gymbro.xcworkspace</font> in Xcode and re-check '
-                  'Signing &amp; Capabilities (section 4) — your free signing certificate may have '
-                  'expired; picking the team again renews it.'))
-    s.append(sub('10.6  AI features say a key is missing'))
-    s.append(para('Add your free Gemini key in Profile (section 8).'))
+    s.append(sub('12.5  The app icon suddenly does nothing'))
+    s.append(para('The 7-day signature expired — completely normal. Section 9. Your data is safe.'))
+    s.append(sub('12.6  "Untrusted Developer" when opening the app'))
+    s.append(para('Phone → Settings → General → VPN &amp; Device Management → your Apple ID → Trust.'))
+    s.append(sub('12.7  AI says a key is missing'))
+    s.append(para('Section 10 — add your free Gemini key in Profile.'))
 
-    # ── 11. Help ──
-    s.append(heading('11. Where to get help'))
+    # ── 13 ──
+    s.append(heading('13. Where to get help'))
     s.append(bullets([
-        f'Open an issue at {REPO}/issues — describe what you tapped and what happened.',
+        f'Open an issue at <b>{REPO}/issues</b> — describe what you clicked and copy the exact error text.',
         'Google AI Studio (free Gemini keys) — aistudio.google.com',
-        'For developers who want to modify the app: the project is a standard Expo / React Native '
-        f'codebase — see the README at {REPO}.',
+        'Developers who want to modify the app: it\'s a standard Expo / React Native project — '
+        f'see the README at {REPO}.',
     ]))
     s.append(Spacer(1, 10))
     s.append(Paragraph('<i>This PDF is generated from scripts/make_setup_pdf.py — edit that file and '
