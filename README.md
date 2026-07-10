@@ -1,50 +1,32 @@
-# Welcome to your Expo app 👋
+# gymbro 💪
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A personal workout + nutrition tracker for iPhone. Log workouts from ready-made plans (your last weights are pre-filled), snap photos of meals to count calories with AI, speak your sets out loud ("sixty by eight"), and watch your strength grow on charts. Everything stays on your phone — no account, no cloud, no subscription.
 
-## Get started
+## 📲 Want the app on your iPhone?
 
-1. Install dependencies
+**Read [SETUP.pdf](SETUP.pdf) — the install guide.** It's written for complete beginners: no programming knowledge needed, every click spelled out, from an empty Mac to the app running on your phone in about an hour.
 
-   ```bash
-   npm install
-   ```
+> The short version: you need a Mac, your iPhone + cable, and a free Apple ID. Free installs last 7 days, then a two-minute refresh keeps it going. Your data always survives.
 
-2. Start the app
+## What's inside
 
-   ```bash
-   npx expo start
-   ```
+- **Workouts** — goal-tuned starter templates (Push/Pull/Legs/Upper), cross-session prefill, add/remove exercises mid-workout, auto-generated warm-up & cool-down
+- **Guided mode** — one set at a time with a rest timer, like having a coach
+- **Voice logging** — on-device speech, works offline, zero API cost
+- **Nutrition** — AI photo scanning, barcode scanner, late-night meal handling, daily macro targets computed from your goal
+- **Progress** — strength/bodyweight/body-fat charts, research-cited insights (plateau detection, volume management, muscle-neglect warnings)
+- **Reminders** — daily + long-term goal notifications with your own message
 
-In the output, you'll find options to open the app in a
+AI features (photo scanning, nutrition coach) use Google Gemini with a **bring-your-own free key** ([get one here](https://aistudio.google.com/apikey), paste it in Profile) — see SETUP.pdf §10.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## For developers
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Standard Expo / React Native (SDK 54, React 19, Expo Router) project. All state is local via AsyncStorage — no backend.
 
 ```bash
-npm run reset-project
+npm install
+npx expo prebuild -p ios   # generates the ios/ project (not checked in)
+npx expo run:ios --device  # or open ios/gymbro.xcworkspace and hit ▶
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Architecture notes live in [CLAUDE.md](CLAUDE.md). The install guide is generated from [scripts/make_setup_pdf.py](scripts/make_setup_pdf.py) — edit that and re-run, don't hand-edit the PDF.
