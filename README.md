@@ -2,11 +2,10 @@
 
 A personal workout + nutrition tracker for iPhone. Log workouts from ready-made plans (your last weights are pre-filled), snap photos of meals to count calories with AI, speak your sets out loud ("sixty by eight"), and watch your strength grow on charts. Everything stays on your phone — no account, no cloud, no subscription.
 
-## 📲 Want the app on your iPhone?
+## 📲 Want the app on your phone?
 
-**Read [SETUP.pdf](SETUP.pdf) — the install guide.** It's written for complete beginners: no programming knowledge needed, every click spelled out, from an empty Mac to the app running on your phone in about an hour.
-
-> The short version: you need a Mac, your iPhone + cable, and a free Apple ID. Free installs last 7 days, then a two-minute refresh keeps it going. Your data always survives.
+- **iPhone → read [SETUP.pdf](SETUP.pdf).** Written for complete beginners: no programming knowledge needed, every click spelled out, from an empty Mac to the app running on your phone in about an hour. (Needs a Mac + free Apple ID; free installs last 7 days, then a two-minute refresh. Your data always survives.)
+- **Android → read [SETUP-ANDROID.pdf](SETUP-ANDROID.pdf).** Even easier: install a single `gymbro.apk` file in two minutes, straight on the phone — no computer, no expiry. The guide also covers how one person builds that .apk for everyone (free Expo cloud build, any OS).
 
 ## What's inside
 
