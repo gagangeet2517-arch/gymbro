@@ -26,6 +26,7 @@ const C = {
 // Bottom bar outline with a smooth cutout ("notch") centered at cx, sized to
 // (width, height). The dip is a symmetric cubic bump either side of cx.
 function barPath(width: number, height: number, cx: number): string {
+  'worklet';
   const r = NOTCH_R;
   const dip = height * 0.62;
   const x0 = Math.max(0, cx - r);
