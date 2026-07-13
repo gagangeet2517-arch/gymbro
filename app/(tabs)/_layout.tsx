@@ -1,32 +1,14 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-
-const COLORS = {
-  border: '#232734',
-  textPrimary: '#F5F7FB',
-  textSecondary: '#9AA3B2',
-};
+import LiquidTabBar from '../../components/ui/LiquidTabBar';
 
 export default function TabsLayout() {
   return (
     <Tabs
+      tabBar={(props) => <LiquidTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: COLORS.textPrimary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
-        tabBarStyle: {
-          backgroundColor: 'rgba(10, 11, 15, 0.98)',
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
-          height: 78,
-          paddingTop: 8,
-          paddingBottom: 10,
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '700',
-        },
       }}
     >
       <Tabs.Screen

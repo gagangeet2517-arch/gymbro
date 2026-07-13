@@ -43,6 +43,8 @@ import Svg, { Circle, Line, Rect } from 'react-native-svg';
 import FeatureHint from '../../components/ui/FeatureHint';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
 import { DailyTargets, MealEntry, SavedFoodItem, useNutrition } from '../../context/NutritionContext';
+import { useWorkout } from '../../context/WorkoutContext';
+import { buildRollingUserState, summarizeForPrompt } from '../../utils/userState';
 import { formatDayLabel, toDateKey } from '../../utils/dateHelpers';
 import { markFeatureSeen } from '../../utils/featureHints';
 import { FoodItem, FoodVisionError, FoodVisionResult, analyzeFoodPhoto, queryFoodText, recomputeTotals } from '../../utils/foodVision';
@@ -207,7 +209,7 @@ function TipCard({ tip, loading, onRefresh }: { tip: string | null; loading: boo
       </View>
       <View style={{ flex: 1 }}>
         {loading
-          ? <Text style={s.tipText}>Getting your daily tip…</Text>
+          ? <Text style={s.tipText}>Reading your week…</Text>
           : <Text style={s.tipText}>{tip}</Text>}
         {!loading && <Text style={s.tipRefresh}>Tap to refresh</Text>}
       </View>
@@ -1350,7 +1352,8 @@ function BarcodeSheet({
 
 export default function NutritionScreen() {
   const { meals, targets, todaysMeals, todaysTotals, addMeal, deleteMeal, updateTargets } = useNutrition();
-  const { latestEntry: bodyEntry } = useBodyMetrics();
+  const { latestEntry: bodyEntry, entries: bodyEntries } = useBodyMetrics();
+  const { completedWorkouts } = useWorkout();
 
   const [showTargets,    setShowTargets]    = useState(false);
   const [showReview,     setShowReview]     = useState(false);
@@ -1378,12 +1381,25 @@ export default function NutritionScreen() {
     if (!geminiKey && !openAIKey) return;
     setTipLoading(true);
     try {
+      const rollingState = buildRollingUserState(
+        meals,
+        completedWorkouts,
+        bodyEntries,
+        targets.calories,
+        targets.protein
+      );
+
       const prompt =
-        `Fitness nutrition coach. Today: ${todaysTotals.calories}/${targets.calories} kcal, ` +
-        `protein ${todaysTotals.protein}/${targets.protein}g, ` +
-        `carbs ${todaysTotals.carbs}/${targets.carbs}g, ` +
-        `fat ${todaysTotals.fat}/${targets.fat}g. ` +
-        `Give ONE short actionable tip (max 2 sentences) to hit today's goals. Be specific. ` +
+        `You are a fitness + nutrition coach with access to this user's real data. ` +
+        `Cross-reference food and training — don't just restate one number, connect them ` +
+        `(e.g. low protein on training days, a stalled lift alongside a calorie deficit, ` +
+        `dropped volume alongside rising bodyweight).\n\n` +
+        `Today so far: ${todaysTotals.calories}/${targets.calories} kcal, ` +
+        `${todaysTotals.protein}/${targets.protein}g protein, ` +
+        `${todaysTotals.carbs}/${targets.carbs}g carbs, ${todaysTotals.fat}/${targets.fat}g fat.\n\n` +
+        `${summarizeForPrompt(rollingState)}\n\n` +
+        `Give ONE short actionable tip (max 2 sentences). Prioritize the weekly pattern over ` +
+        `today's numbers alone if they tell a clearer story. Be specific, no generic advice. ` +
         `Return plain text only, no JSON.`;
 
       // Try Gemini first, fall back to OpenAI
