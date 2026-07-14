@@ -1,24 +1,39 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { withLayoutContext } from 'expo-router';
+import { createMaterialTopTabNavigator, MaterialTopTabNavigationOptions } from '@react-navigation/material-top-tabs';
+import { ParamListBase, TabNavigationState } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import LiquidTabBar from '../../components/ui/LiquidTabBar';
+
+const { Navigator } = createMaterialTopTabNavigator();
+
+const Tabs = withLayoutContext<
+  MaterialTopTabNavigationOptions,
+  typeof Navigator,
+  TabNavigationState<ParamListBase>,
+  any
+>(Navigator);
 
 export default function TabsLayout() {
   return (
     <Tabs
+      tabBarPosition="bottom"
       tabBar={(props) => <LiquidTabBar {...props} />}
+      style={{ backgroundColor: '#080A0F' }}
       screenOptions={{
-        headerShown: false,
+        swipeEnabled: true,
+        animationEnabled: true,
+        sceneStyle: { backgroundColor: '#080A0F' },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
-              size={size}
+              size={22}
               color={color}
             />
           ),
@@ -29,10 +44,10 @@ export default function TabsLayout() {
         name="explore"
         options={{
           title: 'Workouts',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'barbell' : 'barbell-outline'}
-              size={size}
+              size={22}
               color={color}
             />
           ),
@@ -43,10 +58,10 @@ export default function TabsLayout() {
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'time' : 'time-outline'}
-              size={size}
+              size={22}
               color={color}
             />
           ),
@@ -57,10 +72,10 @@ export default function TabsLayout() {
         name="nutrition"
         options={{
           title: 'Nutrition',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'nutrition' : 'nutrition-outline'}
-              size={size}
+              size={22}
               color={color}
             />
           ),
@@ -71,10 +86,10 @@ export default function TabsLayout() {
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'stats-chart' : 'stats-chart-outline'}
-              size={size}
+              size={22}
               color={color}
             />
           ),
