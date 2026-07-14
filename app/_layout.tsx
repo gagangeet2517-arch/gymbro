@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Onboarding from '../components/Onboarding';
 import { BodyMetricsProvider } from '../context/BodyMetricsContext';
 import { ExerciseProvider } from '../context/ExerciseContext';
@@ -32,6 +33,7 @@ function OnboardingGate() {
 
 export default function RootLayout() {
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <NutritionProvider>
     <UserProfileProvider>
     <BodyMetricsProvider>
@@ -52,5 +54,6 @@ export default function RootLayout() {
     </BodyMetricsProvider>
     </UserProfileProvider>
     </NutritionProvider>
+    </GestureHandlerRootView>
   );
 }
