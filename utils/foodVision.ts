@@ -140,7 +140,7 @@ function buildPrompt(hint?: string): string {
 // ─── Gemini path ──────────────────────────────────────────────────────────────
 
 async function analyzeWithGemini(base64: string, key: string, hint?: string): Promise<FoodVisionResult> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${key}`;
 
   const body = JSON.stringify({
     contents: [{
@@ -159,7 +159,7 @@ async function analyzeWithGemini(base64: string, key: string, hint?: string): Pr
 
   const doFetch = async (): Promise<Response> => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20_000);
+    const timer = setTimeout(() => controller.abort(), 35_000);
     try {
       return await fetch(url, { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body });
     } catch (err: unknown) {
@@ -171,7 +171,18 @@ async function analyzeWithGemini(base64: string, key: string, hint?: string): Pr
     }
   };
 
-  let res = await doFetch();
+  // One retry on timeout — a single slow response (cold model, weak signal)
+  // shouldn't immediately fail the whole request.
+  let res: Response;
+  try {
+    res = await doFetch();
+  } catch (err) {
+    if (err instanceof FoodVisionError && err.code === 'timeout') {
+      res = await doFetch();
+    } else {
+      throw err;
+    }
+  }
   if (res.status === 503 || res.status === 429) {
     await new Promise((r) => setTimeout(r, res.status === 429 ? 5000 : 2500));
     res = await doFetch();
@@ -295,7 +306,7 @@ async function tryGeminiText(prompt: string, key: string): Promise<string | null
       thinkingConfig: { thinkingBudget: 0 },
     },
   });
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${key}`;
   let res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
   if (res.status === 503 || res.status === 429) {
     await new Promise((r) => setTimeout(r, res.status === 429 ? 5000 : 2500));
