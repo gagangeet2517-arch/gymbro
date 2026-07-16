@@ -4,6 +4,7 @@ import {
   Dimensions,
   InputAccessoryView,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -322,6 +323,7 @@ function BFCalcModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={ms.backdrop} onPress={handleClose} />
       <View style={ms.sheet}>
         <View style={ms.handle} />
@@ -401,6 +403,7 @@ function BFCalcModal({
           )}
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -667,6 +670,7 @@ export default function ProgressScreen() {
 
   return (
     <SafeAreaView style={s.safeArea}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
@@ -890,6 +894,7 @@ export default function ProgressScreen() {
         onClose={() => setShowBFCalc(false)}
         onApply={(bf) => setBodyFatInput(String(bf))}
       />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -29,7 +29,9 @@ import {
   Easing,
   InputAccessoryView,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -511,6 +513,7 @@ function TargetsSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={s.backdrop} onPress={onClose} />
       <View style={s.sheet}>
         <View style={s.handle} />
@@ -554,6 +557,7 @@ function TargetsSheet({
           </View>
         </InputAccessoryView>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -921,6 +925,7 @@ function ReviewSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={s.backdrop} onPress={onClose} />
       <View style={[s.sheet, s.reviewSheet]}>
         <View style={s.handle} />
@@ -1207,6 +1212,7 @@ function ReviewSheet({
           </View>
         </InputAccessoryView>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1405,7 +1411,7 @@ export default function NutritionScreen() {
       // Try Gemini first, fall back to OpenAI
       if (geminiKey) {
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1421,6 +1427,9 @@ export default function NutritionScreen() {
             json.candidates?.[0]?.content?.parts ?? [];
           const tip = parts.find((p) => !p.thought)?.text?.trim();
           if (tip) { setTipText(tip); return; }
+        } else {
+          const errBody = await res.text().catch(() => '');
+          console.warn('[Gemini tip]', res.status, errBody.slice(0, 300));
         }
       }
       if (openAIKey) {

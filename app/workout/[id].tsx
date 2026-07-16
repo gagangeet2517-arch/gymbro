@@ -5,7 +5,9 @@ import {
   FlatList,
   InputAccessoryView,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -386,6 +388,7 @@ export default function ActiveWorkoutScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.screenWrap}>
         <ScrollView
           style={styles.container}
@@ -777,6 +780,7 @@ export default function ActiveWorkoutScreen() {
             </TouchableOpacity>
           </View>
         </InputAccessoryView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

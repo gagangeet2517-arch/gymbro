@@ -140,7 +140,7 @@ function buildPrompt(hint?: string): string {
 // ─── Gemini path ──────────────────────────────────────────────────────────────
 
 async function analyzeWithGemini(base64: string, key: string, hint?: string): Promise<FoodVisionResult> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`;
 
   const body = JSON.stringify({
     contents: [{
@@ -176,7 +176,20 @@ async function analyzeWithGemini(base64: string, key: string, hint?: string): Pr
     await new Promise((r) => setTimeout(r, res.status === 429 ? 5000 : 2500));
     res = await doFetch();
   }
-  if (!res.ok) throw new FoodVisionError(`gemini:${res.status}`, 'api_error');
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    let detail = '';
+    try {
+      detail = JSON.parse(errBody)?.error?.message ?? '';
+    } catch {
+      // ignore — body wasn't JSON
+    }
+    console.warn('[Gemini photo]', res.status, errBody.slice(0, 300));
+    throw new FoodVisionError(
+      detail ? `gemini:${res.status} — ${detail}` : `gemini:${res.status}`,
+      'api_error'
+    );
+  }
 
   const json = await res.json();
   const parts: Array<{ text?: string; thought?: boolean }> =
@@ -282,13 +295,17 @@ async function tryGeminiText(prompt: string, key: string): Promise<string | null
       thinkingConfig: { thinkingBudget: 0 },
     },
   });
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`;
   let res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
   if (res.status === 503 || res.status === 429) {
     await new Promise((r) => setTimeout(r, res.status === 429 ? 5000 : 2500));
     res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
   }
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    console.warn('[Gemini text]', res.status, errBody.slice(0, 300));
+    return null;
+  }
   const json = await res.json();
   const parts: Array<{ text?: string; thought?: boolean }> =
     json.candidates?.[0]?.content?.parts ?? [];

@@ -7,6 +7,7 @@ import {
   Alert,
   InputAccessoryView,
   Keyboard,
+  KeyboardAvoidingView,
   Linking,
   LayoutAnimation,
   Modal,
@@ -1304,6 +1305,7 @@ function CountryPickerModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={ps.backdrop} onPress={onClose} />
       <View style={[ps.sheet, { maxHeight: '85%' }]}>
         <View style={ps.handle} />
@@ -1350,6 +1352,7 @@ function CountryPickerModal({
           )}
         </ScrollView>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1434,6 +1437,7 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={ps.backdrop} onPress={onClose} />
       <View style={ps.sheet}>
         <View style={ps.handle} />
@@ -1727,6 +1731,7 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
         onSelect={(c) => setCountryCode(c.code)}
         onClose={() => setShowCountry(false)}
       />
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1776,6 +1781,7 @@ function MigrateSheet({ visible, onClose }: { visible: boolean; onClose: () => v
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={ps.backdrop} onPress={onClose} />
       <View style={[ps.sheet, { maxHeight: '90%' }]}>
         <View style={ps.handle} />
@@ -1841,6 +1847,7 @@ function MigrateSheet({ visible, onClose }: { visible: boolean; onClose: () => v
           </View>
         </ScrollView>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
