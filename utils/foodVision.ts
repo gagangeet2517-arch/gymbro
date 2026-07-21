@@ -137,18 +137,30 @@ function buildPrompt(hint?: string): string {
   return BASE_PROMPT + `\n\nUser hint: "${hint.trim()}" — use this to correct food identification if the photo is ambiguous.`;
 }
 
+const TEXT_BASE_PROMPT =
+  'Analyze this food description for a fitness nutrition log. Return ONLY valid JSON with no extra text:\n' +
+  '{"description":"","confidence":"low|medium|high","fiber_g":0,"sodium_mg":0,"sugar_g":0,' +
+  '"items":[{"name":"","estimated_g":0,"cal_per100g":0,"protein_per100g":0,"carbs_per100g":0,' +
+  '"fat_per100g":0,"fiber_per100g":0,"sodium_per100g":0}]}\n' +
+  'List each distinct food/ingredient as a separate item. ' +
+  'Use typical serving sizes and standard portion conventions to estimate weights when not specified. ' +
+  'Convert any units mentioned (tablespoons, cups, pieces, slices, handful, etc.) to grams. ' +
+  'High confidence = food and portions clearly and unambiguously described; low confidence = vague ' +
+  'quantities or unfamiliar dishes needing a guess. ' +
+  'Estimate fiber and sodium per item from typical food composition.';
+
+function buildTextPrompt(description: string): string {
+  return TEXT_BASE_PROMPT + `\n\nUser's meal: "${description.trim()}"`;
+}
+
 // ─── Gemini path ──────────────────────────────────────────────────────────────
 
-async function analyzeWithGemini(base64: string, key: string, hint?: string): Promise<FoodVisionResult> {
+// Shared POST + timeout/retry/error-detail handling for both the photo and
+// text-only Gemini calls — they differ only in the `parts` sent.
+async function postToGemini(parts: unknown[], key: string): Promise<Response> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${key}`;
-
   const body = JSON.stringify({
-    contents: [{
-      parts: [
-        { inline_data: { mime_type: 'image/jpeg', data: base64 } },
-        { text: buildPrompt(hint) },
-      ],
-    }],
+    contents: [{ parts }],
     generationConfig: {
       maxOutputTokens: 1500,
       temperature: 0,
@@ -195,68 +207,39 @@ async function analyzeWithGemini(base64: string, key: string, hint?: string): Pr
     } catch {
       // ignore — body wasn't JSON
     }
-    console.warn('[Gemini photo]', res.status, errBody.slice(0, 300));
+    console.warn('[Gemini]', res.status, errBody.slice(0, 300));
     throw new FoodVisionError(
       detail ? `gemini:${res.status} — ${detail}` : `gemini:${res.status}`,
       'api_error'
     );
   }
+  return res;
+}
 
+async function extractRawText(res: Response): Promise<string> {
   const json = await res.json();
   const parts: Array<{ text?: string; thought?: boolean }> =
     json.candidates?.[0]?.content?.parts ?? [];
   const textPart = parts.find((p) => !p.thought && p.text);
   const raw = textPart?.text?.trim() ?? '';
   if (!raw) throw new FoodVisionError("Couldn't read AI response. Please try again.", 'parse');
-  return parseRawJSON(raw);
+  return raw;
 }
 
-// ─── OpenRouter fallback path ─────────────────────────────────────────────────
-
-const OR_MODELS = ['google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free'];
-
-async function openRouterPhotoFetch(base64: string, key: string, model: string, hint?: string): Promise<Response> {
-  return fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${key}`,
-      'HTTP-Referer': 'https://gymbro.app',
-      'X-Title': 'GymBro',
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
-          { type: 'text', text: buildPrompt(hint) },
-        ],
-      }],
-      max_tokens: 1500,
-      temperature: 0,
-    }),
-  });
+async function analyzeWithGemini(base64: string, key: string, hint?: string): Promise<FoodVisionResult> {
+  const res = await postToGemini(
+    [
+      { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+      { text: buildPrompt(hint) },
+    ],
+    key
+  );
+  return parseRawJSON(await extractRawText(res));
 }
 
-async function analyzeWithOpenRouter(base64: string, key: string, hint?: string): Promise<FoodVisionResult> {
-  for (const model of OR_MODELS) {
-    let res = await openRouterPhotoFetch(base64, key, model, hint);
-    if (res.status === 429 || res.status === 503) {
-      await new Promise((r) => setTimeout(r, 3000));
-      res = await openRouterPhotoFetch(base64, key, model, hint);
-    }
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      console.warn('[OpenRouter photo]', model, res.status, body.slice(0, 200));
-      continue; // try next model
-    }
-    const json = await res.json();
-    const raw: string = json.choices?.[0]?.message?.content?.trim() ?? '';
-    if (!raw) continue;
-    return parseRawJSON(raw);
-  }
-  throw new FoodVisionError('openrouter: all models failed', 'api_error');
+async function analyzeTextWithGemini(description: string, key: string): Promise<FoodVisionResult> {
+  const res = await postToGemini([{ text: buildTextPrompt(description) }], key);
+  return parseRawJSON(await extractRawText(res));
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -276,6 +259,38 @@ export async function analyzeFoodPhoto(imageUri: string, hint?: string): Promise
     } catch (err) {
       // Only an API error is worth retrying with the next key; anything else
       // (network, timeout, parse) is surfaced to the user immediately.
+      if (err instanceof FoodVisionError && err.code === 'api_error') {
+        lastApiError = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastApiError ?? new FoodVisionError(
+    'All AI providers are busy right now. Please wait a moment and try again.',
+    'api_error'
+  );
+}
+
+// Same idea as analyzeFoodPhoto but with no image — just a plain-text
+// description of what was eaten (e.g. "two slices of home-made bread with
+// butter"), for logging a meal when there's no photo to snap.
+export async function analyzeFoodText(description: string): Promise<FoodVisionResult> {
+  if (!description.trim()) {
+    throw new FoodVisionError('Describe what you ate first.', 'parse');
+  }
+
+  const keys = await resolveGeminiKeys();
+  if (keys.length === 0) {
+    throw new FoodVisionError('Add your Google Gemini API key in Profile to use AI features.', 'no_key');
+  }
+
+  let lastApiError: FoodVisionError | null = null;
+  for (const key of keys) {
+    try {
+      return await analyzeTextWithGemini(description, key);
+    } catch (err) {
       if (err instanceof FoodVisionError && err.code === 'api_error') {
         lastApiError = err;
         continue;

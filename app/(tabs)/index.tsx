@@ -7,7 +7,6 @@ import {
   Alert,
   InputAccessoryView,
   Keyboard,
-  KeyboardAvoidingView,
   Linking,
   LayoutAnimation,
   Modal,
@@ -22,6 +21,7 @@ import {
   UIManager,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FeatureHint from '../../components/ui/FeatureHint';
 import PressableScale from '../../components/ui/PressableScale';
@@ -1305,7 +1305,6 @@ function CountryPickerModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={ps.backdrop} onPress={onClose} />
       <View style={[ps.sheet, { maxHeight: '85%' }]}>
         <View style={ps.handle} />
@@ -1352,7 +1351,6 @@ function CountryPickerModal({
           )}
         </ScrollView>
       </View>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1437,7 +1435,6 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={ps.backdrop} onPress={onClose} />
       <View style={ps.sheet}>
         <View style={ps.handle} />
@@ -1450,7 +1447,11 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bottomOffset={20}
+        >
 
           {/* ── Personal info ── */}
           <Text style={ps.sectionLabel}>Personal info</Text>
@@ -1712,7 +1713,7 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
               : <Text style={ps.applyBtnText}>Save profile</Text>}
           </PressableScale>
 
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {Platform.OS === 'ios' && (
           <InputAccessoryView nativeID={PROFILE_KBD_ID}>
@@ -1731,7 +1732,6 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
         onSelect={(c) => setCountryCode(c.code)}
         onClose={() => setShowCountry(false)}
       />
-      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1781,7 +1781,6 @@ function MigrateSheet({ visible, onClose }: { visible: boolean; onClose: () => v
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={ps.backdrop} onPress={onClose} />
       <View style={[ps.sheet, { maxHeight: '90%' }]}>
         <View style={ps.handle} />
@@ -1791,7 +1790,11 @@ function MigrateSheet({ visible, onClose }: { visible: boolean; onClose: () => v
             <Ionicons name="close" size={18} color={C.textSub} />
           </TouchableOpacity>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bottomOffset={20}
+        >
           <View style={{ gap: 14, paddingBottom: 40 }}>
 
             {/* ── Export (Expo Go) ── */}
@@ -1845,9 +1848,8 @@ function MigrateSheet({ visible, onClose }: { visible: boolean; onClose: () => v
               </Text>
             )}
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }

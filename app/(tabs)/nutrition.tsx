@@ -29,9 +29,7 @@ import {
   Easing,
   InputAccessoryView,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -40,6 +38,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Rect } from 'react-native-svg';
 import FeatureHint from '../../components/ui/FeatureHint';
@@ -49,7 +48,7 @@ import { useWorkout } from '../../context/WorkoutContext';
 import { buildRollingUserState, summarizeForPrompt } from '../../utils/userState';
 import { formatDayLabel, toDateKey } from '../../utils/dateHelpers';
 import { markFeatureSeen } from '../../utils/featureHints';
-import { FoodItem, FoodVisionError, FoodVisionResult, analyzeFoodPhoto, queryFoodText, recomputeTotals } from '../../utils/foodVision';
+import { FoodItem, FoodVisionError, FoodVisionResult, analyzeFoodPhoto, analyzeFoodText, queryFoodText, recomputeTotals } from '../../utils/foodVision';
 import { loadUserGeminiKey } from '../../utils/userApiKey';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -513,7 +512,6 @@ function TargetsSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={s.backdrop} onPress={onClose} />
       <View style={s.sheet}>
         <View style={s.handle} />
@@ -523,7 +521,11 @@ function TargetsSheet({
             <Ionicons name="close" size={18} color={C.textSub} />
           </TouchableOpacity>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bottomOffset={20}
+        >
           {([
             { label: 'Calories (kcal)', value: cal,    set: setCal    },
             { label: 'Protein (g)',     value: pro,    set: setPro    },
@@ -548,7 +550,7 @@ function TargetsSheet({
           <TouchableOpacity style={[s.sheetBtn, { marginTop: 4, marginBottom: 8 }]} activeOpacity={0.85} onPress={handleSave}>
             <Text style={s.sheetBtnText}>Save targets</Text>
           </TouchableOpacity>
-        </ScrollView>
+        </KeyboardAwareScrollView>
         <InputAccessoryView nativeID={KBD_ID}>
           <View style={s.kbdBar}>
             <TouchableOpacity onPress={() => Keyboard.dismiss()} activeOpacity={0.7}>
@@ -557,7 +559,6 @@ function TargetsSheet({
           </View>
         </InputAccessoryView>
       </View>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -572,7 +573,7 @@ function ReviewSheet({
   aiResult: FoodVisionResult | null;
   error: string | null;
   imageUri: string | null;
-  source: 'photo' | 'barcode' | 'manual';
+  source: 'photo' | 'barcode' | 'manual' | 'text';
   onSave: (entry: Omit<MealEntry, 'id' | 'loggedAt'>) => void;
   onClose: () => void;
 }) {
@@ -596,6 +597,9 @@ function ReviewSheet({
   const [descVoiceHintSeen,  setDescVoiceHintSeen]  = useState(true);
   const speechModeRef          = React.useRef<'add_item' | 'reanalyze' | null>(null);
   const latestDescTranscript   = React.useRef('');
+  // Text-logged meals start with nothing analyzed yet — the button reads
+  // "Analyze" until the first successful pass, then "Re-analyze" like photos.
+  const isFirstAnalysis = source === 'text' && items.length === 0;
 
   React.useEffect(() => {
     if (aiResult) {
@@ -613,7 +617,7 @@ function ReviewSheet({
   }, [aiResult]);
 
   React.useEffect(() => {
-    if (visible && source === 'photo') {
+    if (visible && (source === 'photo' || source === 'text')) {
       AsyncStorage.getItem('gymbro_desc_voice_hint_seen').then((v) => {
         if (v === null) setDescVoiceHintSeen(false);
       });
@@ -734,11 +738,18 @@ function ReviewSheet({
   };
 
   const handleReanalyze = async (hintOverride?: string) => {
-    if (!imageUri || source !== 'photo') return;
+    if (source === 'photo' && !imageUri) return;
+    if (source !== 'photo' && source !== 'text') return;
+    const hint = hintOverride ?? desc.trim();
+    if (source === 'text' && !hint) {
+      Alert.alert('Nothing to analyze', 'Type what you ate first.');
+      return;
+    }
     setReanalyzeLoading(true);
     try {
-      const hint = hintOverride ?? desc.trim();
-      const result = await analyzeFoodPhoto(imageUri, hint || undefined);
+      const result = source === 'text'
+        ? await analyzeFoodText(hint)
+        : await analyzeFoodPhoto(imageUri!, hint || undefined);
       setDesc(result.description);
       setCal(String(result.calories));
       setPro(String(result.protein_g));
@@ -751,7 +762,8 @@ function ReviewSheet({
       setRefineOpen(result.confidence !== 'high');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
-      Alert.alert('Re-analysis failed', err instanceof FoodVisionError ? err.message : 'Please try again.');
+      const title = source === 'text' && items.length === 0 ? 'Analysis failed' : 'Re-analysis failed';
+      Alert.alert(title, err instanceof FoodVisionError ? err.message : 'Please try again.');
     } finally {
       setReanalyzeLoading(false);
     }
@@ -925,7 +937,6 @@ function ReviewSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={s.backdrop} onPress={onClose} />
       <View style={[s.sheet, s.reviewSheet]}>
         <View style={s.handle} />
@@ -936,7 +947,11 @@ function ReviewSheet({
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bottomOffset={20}
+        >
           {/* Thumbnail */}
           {imageUri && (
             <View style={s.thumbRow}>
@@ -973,7 +988,7 @@ function ReviewSheet({
           <View style={s.sheetField}>
             <View style={s.descLabelRow}>
               <Text style={s.sheetFieldLabel}>Description</Text>
-              {source === 'photo' && !loading && (
+              {(source === 'photo' || source === 'text') && !loading && (
                 <View style={s.descActionRow}>
                   <TouchableOpacity
                     style={[s.descVoiceBtn, descVoiceListening && s.descVoiceBtnActive]}
@@ -995,9 +1010,9 @@ function ReviewSheet({
                   >
                     {reanalyzeLoading
                       ? <ActivityIndicator size="small" color={C.blue} />
-                      : <Ionicons name="refresh-outline" size={13} color={C.blue} />}
+                      : <Ionicons name={isFirstAnalysis ? 'sparkles-outline' : 'refresh-outline'} size={13} color={C.blue} />}
                     <Text style={s.reanalyzeBtnText}>
-                      {reanalyzeLoading ? 'Re-analyzing…' : 'Re-analyze'}
+                      {reanalyzeLoading ? (isFirstAnalysis ? 'Analyzing…' : 'Re-analyzing…') : (isFirstAnalysis ? 'Analyze' : 'Re-analyze')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -1007,23 +1022,28 @@ function ReviewSheet({
               style={[s.sheetInput, s.descInput, descVoiceListening && s.descInputListening]}
               value={loading ? '' : desc}
               onChangeText={setDesc}
-              placeholder={loading ? 'Analyzing meal…' : descVoiceListening ? 'Listening…' : 'e.g. Paneer bhurji with corn — edit to improve AI accuracy'}
+              placeholder={
+                loading ? 'Analyzing meal…'
+                : descVoiceListening ? 'Listening…'
+                : source === 'text' ? 'e.g. Two slices of home-made bread with butter and a fried egg'
+                : 'e.g. Paneer bhurji with corn — edit to improve AI accuracy'
+              }
               placeholderTextColor={loading ? C.textSub : descVoiceListening ? C.accent : C.textMuted}
               editable={!loading && !descVoiceListening}
               keyboardAppearance="dark"
               multiline
               scrollEnabled={false}
             />
-            {source === 'photo' && !loading && !descVoiceHintSeen && (
+            {(source === 'photo' || source === 'text') && !loading && !descVoiceHintSeen && (
               <View style={s.descVoiceHint}>
                 <Ionicons name="mic-outline" size={13} color={C.accent} />
                 <Text style={s.descVoiceHintText}>
-                  Tap the mic to describe your meal by voice — the AI will use it to re-analyze
+                  Tap the mic to describe your meal by voice — the AI will use it to {isFirstAnalysis ? 'analyze' : 're-analyze'}
                 </Text>
               </View>
             )}
             {descVoiceListening && (
-              <Text style={s.descListeningNote}>Tap the mic again to stop and re-analyze</Text>
+              <Text style={s.descListeningNote}>Tap the mic again to stop and {isFirstAnalysis ? 'analyze' : 're-analyze'}</Text>
             )}
           </View>
 
@@ -1202,7 +1222,7 @@ function ReviewSheet({
           >
             <Text style={s.sheetBtnText}>{loading ? 'Waiting for analysis…' : 'Save meal'}</Text>
           </TouchableOpacity>
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         <InputAccessoryView nativeID={KBD_ID}>
           <View style={s.kbdBar}>
@@ -1212,7 +1232,6 @@ function ReviewSheet({
           </View>
         </InputAccessoryView>
       </View>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1367,7 +1386,7 @@ export default function NutritionScreen() {
   const [reviewResult,   setReviewResult]   = useState<FoodVisionResult | null>(null);
   const [reviewError,    setReviewError]    = useState<string | null>(null);
   const [reviewImageUri, setReviewImageUri] = useState<string | null>(null);
-  const [reviewSource,   setReviewSource]   = useState<'photo' | 'barcode' | 'manual'>('photo');
+  const [reviewSource,   setReviewSource]   = useState<'photo' | 'barcode' | 'manual' | 'text'>('photo');
   const [showBarcode,    setShowBarcode]    = useState(false);
   const [barcodeResult,  setBarcodeResult]  = useState<Omit<MealEntry, 'id' | 'loggedAt'> | null>(null);
   const [tipText,        setTipText]        = useState<string | null>(null);
@@ -1548,6 +1567,18 @@ export default function NutritionScreen() {
     }
   };
 
+  // Opens Review & Save empty, ready for a typed description — no photo
+  // needed. The AI analysis runs when the user taps Analyze (ReviewSheet's
+  // handleReanalyze), same as re-analyzing a photo meal.
+  const handleLogByText = () => {
+    setReviewResult(null);
+    setReviewError(null);
+    setReviewImageUri(null);
+    setReviewSource('text');
+    setReviewLoading(false);
+    setShowReview(true);
+  };
+
   const handleBarcodeResult = (entry: Omit<MealEntry, 'id' | 'loggedAt'>) => {
     setBarcodeResult(entry);
     setReviewResult(null);
@@ -1641,7 +1672,7 @@ export default function NutritionScreen() {
           id="nutrition-ai-logging"
           icon="sparkles-outline"
           title="AI-powered meal logging"
-          body="Take a photo or scan a barcode and the AI estimates calories and macros for you. Add a free Gemini key in Profile if you haven't yet."
+          body="Take a photo, scan a barcode, or just type what you ate — the AI estimates calories and macros for you. Add a free Gemini key in Profile if you haven't yet."
         />
         <View style={s.addCol}>
           <TouchableOpacity
@@ -1670,6 +1701,14 @@ export default function NutritionScreen() {
               <Text style={s.addBtnSecondaryText}>Photo Library</Text>
             </TouchableOpacity>
           </View>
+          <TouchableOpacity
+            style={s.addBtnSecondary}
+            activeOpacity={0.85}
+            onPress={() => { handleLogByText(); markFeatureSeen('nutrition-ai-logging'); }}
+          >
+            <Ionicons name="create-outline" size={20} color={C.textSub} />
+            <Text style={s.addBtnSecondaryText}>Log by Text</Text>
+          </TouchableOpacity>
         </View>
 
         {/* AI Tip */}

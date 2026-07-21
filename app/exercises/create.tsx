@@ -2,14 +2,13 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Keyboard,
-    KeyboardAvoidingView,
-    Platform,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppCard from '../../components/ui/AppCard';
 import { useExercises } from '../../context/ExerciseContext';
@@ -43,8 +42,11 @@ export default function CreateCustomExerciseScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.container}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        bottomOffset={20}
+      >
         <TouchableOpacity
           style={styles.backButton}
           activeOpacity={0.85}
@@ -110,8 +112,7 @@ export default function CreateCustomExerciseScreen() {
             <Text style={styles.saveButtonText}>Save Custom Exercise</Text>
           </TouchableOpacity>
         </View>
-      </View>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

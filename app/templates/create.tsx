@@ -2,15 +2,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppButton from '../../components/ui/AppButton';
 import AppCard from '../../components/ui/AppCard';
@@ -149,12 +147,12 @@ export default function CreateTemplateScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        bottomOffset={20}
       >
         <TouchableOpacity
           style={styles.backButton}
@@ -303,8 +301,7 @@ export default function CreateTemplateScreen() {
             onPress={() => router.push(buildExercisesRoute() as never)}
           />
         </View>
-      </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

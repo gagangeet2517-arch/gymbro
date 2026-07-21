@@ -4,7 +4,6 @@ import {
   Dimensions,
   InputAccessoryView,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -15,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Circle, Line, Polygon, Polyline, Svg } from 'react-native-svg';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
@@ -323,9 +323,13 @@ function BFCalcModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={ms.backdrop} onPress={handleClose} />
-      <View style={ms.sheet}>
+      <KeyboardAwareScrollView
+        style={ms.sheet}
+        bottomOffset={20}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={ms.handle} />
 
         <View style={ms.hdr}>
@@ -402,8 +406,7 @@ function BFCalcModal({
             </TouchableOpacity>
           )}
         </View>
-      </View>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </Modal>
   );
 }
@@ -670,12 +673,12 @@ export default function ProgressScreen() {
 
   return (
     <SafeAreaView style={s.safeArea}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
+      <KeyboardAwareScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
+        bottomOffset={20}
       >
         {/* ── Header ── */}
         <View style={s.headerRow}>
@@ -876,7 +879,7 @@ export default function ProgressScreen() {
             </Text>
           </View>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* iOS keyboard accessory — replaces the default gray Done toolbar */}
       {Platform.OS === 'ios' && (
@@ -894,7 +897,6 @@ export default function ProgressScreen() {
         onClose={() => setShowBFCalc(false)}
         onApply={(bf) => setBodyFatInput(String(bf))}
       />
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

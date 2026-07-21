@@ -5,9 +5,7 @@ import {
   FlatList,
   InputAccessoryView,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GuidedWorkout from '../../components/GuidedWorkout';
 import FeatureHint from '../../components/ui/FeatureHint';
@@ -388,13 +387,13 @@ export default function ActiveWorkoutScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.screenWrap}>
-        <ScrollView
+        <KeyboardAwareScrollView
           style={styles.container}
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
           scrollEnabled={overlayType === null && finishSummary === null && pendingRemoveId === null}
+          bottomOffset={20}
         >
           <View style={styles.headerRow}>
             <TouchableOpacity
@@ -603,7 +602,7 @@ export default function ActiveWorkoutScreen() {
           </PressableScale>
 
           <MobilityCard emoji="🧊" title="Cool-down stretches" plan={cooldownPlan} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {overlayType !== null ? (
           <View style={styles.overlay}>
@@ -780,7 +779,6 @@ export default function ActiveWorkoutScreen() {
             </TouchableOpacity>
           </View>
         </InputAccessoryView>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
