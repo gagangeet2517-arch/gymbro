@@ -315,7 +315,98 @@ def build():
                   'settings are never lost</b> — reinstalling on top keeps all data.'))
 
     # ── 10 ──
-    s.append(heading('10. Turn on the AI features (optional, free)'))
+    s.append(heading('10. Optional: let everyone refresh it themselves with AltStore'))
+    s.append(para('Right now, only the Mac that has Xcode set up (yours, from sections 1–8) can '
+                  'refresh gymbro every 7 days. If friends installed it from your Mac too, they need '
+                  '<b>you</b> every week. <b>AltStore</b> fixes that: each friend does a short '
+                  'one-time setup on their own computer, and after that their phone refreshes itself '
+                  'automatically — forever, for free, with no Apple Developer Program and no more '
+                  'asking you.'))
+    s.append(callout('This does not remove Apple\'s 7-day rule — nothing free can, that\'s Apple\'s '
+                     'own policy. AltStore just automates <i>who</i> does the refreshing: instead of '
+                     'you doing it for everyone, each person\'s own computer does it for them.'))
+
+    s.append(sub('10.1  What you need first: a shared .ipa file'))
+    s.append(para('AltStore installs a single file called an <font face="Courier">.ipa</font> — '
+                  'think of it like the Android <font face="Courier">.apk</font> from the other '
+                  'guide, but for iPhone. Someone who already has gymbro building in Xcode (section '
+                  '8) needs to export this file <b>once</b> and share it (e.g. upload it to the '
+                  'project\'s GitHub Releases, or send it directly). See section 10.5 below for '
+                  'exactly how.'))
+
+    s.append(sub('10.2  Part 1 — Each friend sets up AltStore (≈15 minutes, one time)'))
+    s.append(para('This needs a Windows or Mac computer — it does not have to be the same Mac used '
+                  'to build gymbro.'))
+    s.append(steps([
+        'On the computer, go to <b>altstore.io</b> and download <b>AltServer</b> for Windows or Mac.',
+        'Mac: drag <font face="Courier">AltServer.app</font> into the <b>Applications</b> folder, '
+        'then open it — a small icon appears in the menu bar at the top of the screen. '
+        'Windows: unzip the download, run <b>Setup.exe</b>, then also install <b>iTunes and iCloud '
+        'from Apple\'s own website</b> (not the Microsoft Store) if not already installed — '
+        'AltServer needs them to talk to the iPhone.',
+        'Plug the iPhone into that computer with a cable and <b>unlock it</b>. Tap <b>Trust</b> if asked.',
+        'Mac: open Finder, click the iPhone in the sidebar, tick <b>"Show this iPhone when on '
+        'Wi-Fi"</b>. Windows: open iTunes, sign in, and enable <b>Wi-Fi sync</b> for the device.',
+        'Click the AltServer icon (menu bar on Mac, system tray on Windows) → <b>Install AltStore</b> '
+        '→ choose the iPhone from the list.',
+        'A box appears asking for an Apple ID — type in your <b>own free Apple ID</b> (the normal '
+        'one used for the App Store). This only goes to Apple, never anywhere else.',
+        'On the iPhone: <b>Settings → General → VPN &amp; Device Management</b> → tap the new '
+        'profile → <b>Trust</b>.',
+        'Still on the iPhone: <b>Settings → Privacy &amp; Security</b> → scroll to the bottom → '
+        '<b>Developer Mode</b> → turn it <b>On</b> → the phone restarts, unlock it and confirm.',
+    ]))
+    s.append(para('AltStore is now on the phone — you\'ll see its icon like any other app.'))
+
+    s.append(sub('10.3  Installing gymbro through AltStore'))
+    s.append(steps([
+        f'On the iPhone, get the <font face="Courier">gymbro.ipa</font> file onto it — easiest way: '
+        f'open the link to it (e.g. from {REPO}/releases) in Safari and tap Download, or AirDrop it '
+        'from another Apple device.',
+        'Open the <b>Files</b> app, find the downloaded .ipa, tap and hold it, and choose '
+        '<b>Share → AltStore</b>. (If AltStore doesn\'t appear in the list, open AltStore first, go '
+        'to the <b>My Apps</b> tab, tap <b>+</b> in the top-left, and browse to the file instead.)',
+        'AltStore installs it exactly like the Install step in section 8 — the same "Untrusted '
+        'Developer" trust step appears if needed (Settings → General → VPN &amp; Device Management '
+        '→ Trust).',
+    ]))
+
+    s.append(sub('10.4  Keeping it alive — no more asking anyone'))
+    s.append(para('AltStore automatically tries to refresh gymbro in the background whenever the '
+                  'phone is on the <b>same Wi-Fi network</b> as the computer running AltServer — so '
+                  'leave AltServer open (it can just sit in the menu bar / system tray) and it takes '
+                  'care of itself. To refresh right away instead: open AltStore, go to <b>My '
+                  'Apps</b>, and tap <b>Refresh All</b>.'))
+    s.append(callout('AltServer genuinely needs to be running on that computer for a refresh to '
+                     'work — the phone can\'t re-sign itself alone. If a week goes by with the '
+                     'computer never turned on, gymbro will still expire; just open AltServer, get '
+                     'on the same Wi-Fi as the phone, and refresh. Also: a free Apple ID can only '
+                     'keep <b>3 apps</b> signed at once on one device — if AltStore refuses to '
+                     'install, that limit is the usual reason.'))
+
+    s.append(sub('10.5  Part 2 — Exporting the .ipa (for whoever already has gymbro in Xcode)'))
+    s.append(para('Once you\'ve completed section 8 and gymbro runs on your own phone, you can '
+                  'export a shareable file for everyone else to sideload with AltStore:'))
+    s.append(steps([
+        'In Xcode (open via <font face="Courier">open ios/gymbro.xcworkspace</font> if it isn\'t '
+        'already open), pick <b>Any iOS Device</b> from the device menu at the top — not your own '
+        'phone this time.',
+        'Menu bar → <b>Product → Archive</b>. This takes a few minutes — it\'s building a release copy.',
+        'When it finishes, the <b>Organizer</b> window opens automatically with your archive '
+        'selected. Click <b>Distribute App</b>.',
+        'Choose <b>Development</b> (the only option available with a free Apple ID) → <b>Next</b> '
+        'through the remaining screens, leaving the defaults, until you reach <b>Export</b>.',
+        'Pick a folder to save into. Xcode creates a folder there containing '
+        '<font face="Courier">gymbro.ipa</font> — that\'s the file everyone else needs.',
+        f'Share it: upload it to a <b>Release</b> on {REPO} (same place as the Android .apk), or '
+        'send it directly via AirDrop, Drive, or email.',
+    ]))
+    s.append(callout('This .ipa still "expires" 7 days from whenever it was exported — that\'s fine. '
+                     'AltStore resigns it fresh with each friend\'s own Apple ID the moment they '
+                     'install it, so the original export date doesn\'t matter to them.'))
+
+    # ── 11 (was 10) ──
+    s.append(heading('11. Turn on the AI features (optional, free)'))
     s.append(para('Photo food scanning and the nutrition coach use Google Gemini and need a free key:'))
     s.append(steps([
         'On any device, go to <b>aistudio.google.com/apikey</b>, sign in with a Google account, '
@@ -324,8 +415,8 @@ def build():
         'The status line says <b>"Using your key"</b> — done. The key never leaves your phone.',
     ]))
 
-    # ── 11 ──
-    s.append(heading('11. Quick tour — what the app can do'))
+    # ── 12 (was 11) ──
+    s.append(heading('12. Quick tour — what the app can do'))
     s.append(bullets([
         '<b>Workouts tab</b> — start from a ready-made plan; your weights and reps from last time are '
         'pre-filled so you just try to beat them. Add/remove exercises mid-workout; a warm-up and '
@@ -344,39 +435,49 @@ def build():
                      'dismissible card describes it. It shows once and disappears after you use the '
                      'feature or tap ✕.'))
 
-    # ── 12 ──
-    s.append(heading('12. When something goes wrong'))
-    s.append(sub('12.1  Terminal says "command not found: npm" (or brew, or npx)'))
+    # ── 13 (was 12) ──
+    s.append(heading('13. When something goes wrong'))
+    s.append(sub('13.1  Terminal says "command not found: npm" (or brew, or npx)'))
     s.append(para('The tool from section 4 isn\'t installed or Terminal hasn\'t noticed it yet. '
                   'Close Terminal completely (⌘Q), reopen it, try again. Still failing → redo the '
                   'relevant part of section 4.'))
-    s.append(sub('12.2  Terminal says "permission denied" or "no such file or directory"'))
+    s.append(sub('13.2  Terminal says "permission denied" or "no such file or directory"'))
     s.append(para('Almost always a path problem. Use the drag-trick: type '
                   '<font face="Courier">cd&nbsp;</font> (with a space), drag the gymbro-main folder from '
                   'Finder into the Terminal window, press Enter. Never run a folder path on its own '
                   'without <font face="Courier">cd</font> in front.'))
-    s.append(sub('12.3  Xcode: "bundle identifier not available" / signing errors'))
+    s.append(sub('13.3  Xcode: "bundle identifier not available" / signing errors'))
     s.append(para('Section 7, last step — change the Bundle Identifier to '
                   '<font face="Courier">com.yourname.gymbro</font> and re-pick your Team.'))
-    s.append(sub('12.4  Xcode can\'t see my iPhone'))
+    s.append(sub('13.4  Xcode can\'t see my iPhone'))
     s.append(bullets([
         'Unlock the phone and keep it unlocked; check the cable is properly in.',
         'Tap <b>Trust</b> if the phone asks (again — iOS updates re-ask).',
         'Check <b>Developer Mode</b> is On (section 8.1) — iOS updates sometimes switch it off.',
         'Still nothing → unplug, replug, wait 30 seconds.',
     ]))
-    s.append(sub('12.5  The app icon suddenly does nothing'))
-    s.append(para('The 7-day signature expired — completely normal. Section 9. Your data is safe.'))
-    s.append(sub('12.6  "Untrusted Developer" when opening the app'))
+    s.append(sub('13.5  The app icon suddenly does nothing'))
+    s.append(para('The 7-day signature expired — completely normal. Section 9 (or 10.4 if you\'re on '
+                  'AltStore). Your data is safe.'))
+    s.append(sub('13.6  "Untrusted Developer" when opening the app'))
     s.append(para('Phone → Settings → General → VPN &amp; Device Management → your Apple ID → Trust.'))
-    s.append(sub('12.7  AI says a key is missing'))
-    s.append(para('Section 10 — add your free Gemini key in Profile.'))
+    s.append(sub('13.7  AI says a key is missing'))
+    s.append(para('Section 11 — add your free Gemini key in Profile.'))
+    s.append(sub('13.8  AltStore won\'t install gymbro, or "maximum app limit reached"'))
+    s.append(bullets([
+        'A free Apple ID can only keep <b>3 apps</b> signed at once per device — remove another '
+        'sideloaded app in AltStore\'s My Apps tab, or use a different Apple ID.',
+        'Make sure <b>AltServer</b> is actually running on the computer and both devices are on the '
+        'same Wi-Fi network — AltStore can\'t sign anything without it.',
+        'Re-do the Trust step: Settings → General → VPN &amp; Device Management → your Apple ID → Trust.',
+    ]))
 
-    # ── 13 ──
-    s.append(heading('13. Where to get help'))
+    # ── 14 (was 13) ──
+    s.append(heading('14. Where to get help'))
     s.append(bullets([
         f'Open an issue at <b>{REPO}/issues</b> — describe what you clicked and copy the exact error text.',
         'Google AI Studio (free Gemini keys) — aistudio.google.com',
+        'AltStore setup problems — faq.altstore.io',
         'Developers who want to modify the app: it\'s a standard Expo / React Native project — '
         f'see the README at {REPO}.',
     ]))
