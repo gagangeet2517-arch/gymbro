@@ -168,11 +168,20 @@ def build():
                   'experience and walks through every single click. The one-time setup takes about '
                   'an hour (mostly waiting for downloads). After that, keeping the app running takes '
                   'two minutes a week.'))
+    s.append(callout('<b>Only have a Windows PC, or don\'t want to touch any of this?</b> Sections '
+                     '1–9 need a Mac — Xcode (the tool that does the installing) only exists for '
+                     'macOS, there is no Windows version, ever. If someone else has already built a '
+                     '<font face="Courier">gymbro.ipa</font> file and shared it with you, skip '
+                     'straight to <b>section 10 (AltStore)</b> instead — that path works fully from '
+                     'Windows and needs no Xcode at all.'))
 
     # ── 2 ──
     s.append(heading('2. What you need'))
+    s.append(para('<b>This section (and 3–9) is the Mac path.</b> If you\'re on Windows or just want '
+                  'gymbro without touching Xcode, jump to section 10 instead.'))
     s.append(bullets([
-        '<b>A Mac</b> (any reasonably recent MacBook or iMac).',
+        '<b>A Mac</b> (any reasonably recent MacBook or iMac) — required for this path; skip to '
+        'section 10 if you don\'t have one.',
         '<b>Your iPhone</b> and its <b>charging cable</b> (it must connect to the Mac).',
         '<b>An Apple ID</b> — the normal, free one you already use for the App Store.',
         '<b>About 15 GB of free disk space</b> on the Mac (the Apple developer tools are big).',
@@ -208,6 +217,8 @@ def build():
     # ── 4 ──
     s.append(heading('4. One-time: install the tools (≈45 min, mostly waiting)'))
     s.append(sub('4.1  Install Xcode'))
+    s.append(callout('On Windows? Stop here — Xcode is Mac-only and there is no way to install it '
+                     'on Windows. Go to <b>section 10 (AltStore)</b> instead.'))
     s.append(steps([
         'Open the <b>App Store</b> app on the Mac.',
         'Search for <b>Xcode</b>, click <b>Get</b>, then <b>Install</b>. It is a very large download '
