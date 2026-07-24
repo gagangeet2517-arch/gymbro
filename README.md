@@ -4,7 +4,8 @@ A personal workout + nutrition tracker for iPhone. Log workouts from ready-made 
 
 ## 📲 Want the app on your phone?
 
-- **iPhone → read [SETUP.pdf](SETUP.pdf).** Written for complete beginners: no programming knowledge needed, every click spelled out, from an empty Mac to the app running on your phone in about an hour. (Needs a Mac + free Apple ID; free installs last 7 days, then a two-minute refresh. Your data always survives.)
+- **iPhone, with a Mac → read [SETUP.pdf](SETUP.pdf).** Written for complete beginners: no programming knowledge needed, every click spelled out, from an empty Mac to the app running on your phone in about an hour. (Needs a Mac + free Apple ID; free installs last 7 days, then a two-minute refresh. Your data always survives.)
+- **iPhone, no Mac (e.g. Windows) → read [SETUP-WINDOWS.pdf](SETUP-WINDOWS.pdf).** Uses the free tool AltStore to sideload a shared `gymbro.ipa` file — no Xcode, no Apple Developer Program. After a ~15 minute one-time setup, your phone refreshes itself automatically every week.
 - **Android → read [SETUP-ANDROID.pdf](SETUP-ANDROID.pdf).** Even easier: install a single `gymbro.apk` file in two minutes, straight on the phone — no computer, no expiry. The guide also covers how one person builds that .apk for everyone (free Expo cloud build, any OS).
 
 ## What's inside
@@ -16,7 +17,7 @@ A personal workout + nutrition tracker for iPhone. Log workouts from ready-made 
 - **Progress** — strength/bodyweight/body-fat charts, research-cited insights (plateau detection, volume management, muscle-neglect warnings)
 - **Reminders** — daily + long-term goal notifications with your own message
 
-AI features (photo scanning, nutrition coach) use Google Gemini with a **bring-your-own free key** ([get one here](https://aistudio.google.com/apikey), paste it in Profile) — see SETUP.pdf §10.
+AI features (photo scanning, nutrition coach) use Google Gemini with a **bring-your-own free key** ([get one here](https://aistudio.google.com/apikey), paste it in Profile) — see SETUP.pdf §11.
 
 ## For developers
 
@@ -28,4 +29,4 @@ npx expo prebuild -p ios   # generates the ios/ project (not checked in)
 npx expo run:ios --device  # or open ios/gymbro.xcworkspace and hit ▶
 ```
 
-Architecture notes live in [CLAUDE.md](CLAUDE.md). The install guide is generated from [scripts/make_setup_pdf.py](scripts/make_setup_pdf.py) — edit that and re-run, don't hand-edit the PDF.
+Architecture notes live in [CLAUDE.md](CLAUDE.md). The install guides are generated from [scripts/make_setup_pdf.py](scripts/make_setup_pdf.py), [scripts/make_windows_pdf.py](scripts/make_windows_pdf.py), and [scripts/make_android_pdf.py](scripts/make_android_pdf.py) — edit those and re-run, don't hand-edit the PDFs.
