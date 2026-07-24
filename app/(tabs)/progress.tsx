@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Circle, Line, Polygon, Polyline, Svg } from 'react-native-svg';
 import { useBodyMetrics } from '../../context/BodyMetricsContext';
@@ -323,7 +324,12 @@ function BFCalcModal({
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
       <Pressable style={ms.backdrop} onPress={handleClose} />
-      <View style={ms.sheet}>
+      <KeyboardAwareScrollView
+        style={ms.sheet}
+        bottomOffset={20}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={ms.handle} />
 
         <View style={ms.hdr}>
@@ -400,7 +406,7 @@ function BFCalcModal({
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </KeyboardAwareScrollView>
     </Modal>
   );
 }
@@ -667,11 +673,12 @@ export default function ProgressScreen() {
 
   return (
     <SafeAreaView style={s.safeArea}>
-      <ScrollView
+      <KeyboardAwareScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
+        bottomOffset={20}
       >
         {/* ── Header ── */}
         <View style={s.headerRow}>
@@ -872,7 +879,7 @@ export default function ProgressScreen() {
             </Text>
           </View>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* iOS keyboard accessory — replaces the default gray Done toolbar */}
       {Platform.OS === 'ios' && (

@@ -168,11 +168,19 @@ def build():
                   'experience and walks through every single click. The one-time setup takes about '
                   'an hour (mostly waiting for downloads). After that, keeping the app running takes '
                   'two minutes a week.'))
+    s.append(callout('<b>Only have a Windows PC, or don\'t want to touch any of this?</b> Sections '
+                     '1–9 need a Mac — Xcode (the tool that does the installing) only exists for '
+                     'macOS, there is no Windows version, ever. Read <b>SETUP-WINDOWS.pdf</b> '
+                     f'(also in {REPO}) instead — it covers installing gymbro via AltStore, which '
+                     'needs no Mac and no Xcode at all.'))
 
     # ── 2 ──
     s.append(heading('2. What you need'))
+    s.append(para('<b>This section (and 3–9) is the Mac path.</b> If you\'re on Windows or just want '
+                  'gymbro without touching Xcode, read SETUP-WINDOWS.pdf instead.'))
     s.append(bullets([
-        '<b>A Mac</b> (any reasonably recent MacBook or iMac).',
+        '<b>A Mac</b> (any reasonably recent MacBook or iMac) — required for this path; read '
+        'SETUP-WINDOWS.pdf if you don\'t have one.',
         '<b>Your iPhone</b> and its <b>charging cable</b> (it must connect to the Mac).',
         '<b>An Apple ID</b> — the normal, free one you already use for the App Store.',
         '<b>About 15 GB of free disk space</b> on the Mac (the Apple developer tools are big).',
@@ -208,6 +216,8 @@ def build():
     # ── 4 ──
     s.append(heading('4. One-time: install the tools (≈45 min, mostly waiting)'))
     s.append(sub('4.1  Install Xcode'))
+    s.append(callout('On Windows? Stop here — Xcode is Mac-only and there is no way to install it '
+                     'on Windows. Read <b>SETUP-WINDOWS.pdf</b> instead.'))
     s.append(steps([
         'Open the <b>App Store</b> app on the Mac.',
         'Search for <b>Xcode</b>, click <b>Get</b>, then <b>Install</b>. It is a very large download '
@@ -315,7 +325,17 @@ def build():
                   'settings are never lost</b> — reinstalling on top keeps all data.'))
 
     # ── 10 ──
-    s.append(heading('10. Turn on the AI features (optional, free)'))
+    s.append(heading('10. Optional: let everyone refresh it themselves'))
+    s.append(para('Right now, only the Mac that has Xcode set up (yours, from sections 1–8) can '
+                  'refresh gymbro every 7 days. If friends installed it from your Mac too, they need '
+                  '<b>you</b> every week. There\'s a free, no-Mac-needed alternative — '
+                  '<b>AltStore</b> — where each friend does a short one-time setup on their own '
+                  'computer (Windows or Mac) and their phone then refreshes itself automatically, '
+                  f'forever. Full step-by-step in <b>SETUP-WINDOWS.pdf</b> (also in {REPO}) — despite '
+                  'the name, it works for anyone, not just Windows users.'))
+
+    # ── 11 (was 10) ──
+    s.append(heading('11. Turn on the AI features (optional, free)'))
     s.append(para('Photo food scanning and the nutrition coach use Google Gemini and need a free key:'))
     s.append(steps([
         'On any device, go to <b>aistudio.google.com/apikey</b>, sign in with a Google account, '
@@ -324,8 +344,8 @@ def build():
         'The status line says <b>"Using your key"</b> — done. The key never leaves your phone.',
     ]))
 
-    # ── 11 ──
-    s.append(heading('11. Quick tour — what the app can do'))
+    # ── 12 (was 11) ──
+    s.append(heading('12. Quick tour — what the app can do'))
     s.append(bullets([
         '<b>Workouts tab</b> — start from a ready-made plan; your weights and reps from last time are '
         'pre-filled so you just try to beat them. Add/remove exercises mid-workout; a warm-up and '
@@ -344,39 +364,44 @@ def build():
                      'dismissible card describes it. It shows once and disappears after you use the '
                      'feature or tap ✕.'))
 
-    # ── 12 ──
-    s.append(heading('12. When something goes wrong'))
-    s.append(sub('12.1  Terminal says "command not found: npm" (or brew, or npx)'))
+    # ── 13 (was 12) ──
+    s.append(heading('13. When something goes wrong'))
+    s.append(sub('13.1  Terminal says "command not found: npm" (or brew, or npx)'))
     s.append(para('The tool from section 4 isn\'t installed or Terminal hasn\'t noticed it yet. '
                   'Close Terminal completely (⌘Q), reopen it, try again. Still failing → redo the '
                   'relevant part of section 4.'))
-    s.append(sub('12.2  Terminal says "permission denied" or "no such file or directory"'))
+    s.append(sub('13.2  Terminal says "permission denied" or "no such file or directory"'))
     s.append(para('Almost always a path problem. Use the drag-trick: type '
                   '<font face="Courier">cd&nbsp;</font> (with a space), drag the gymbro-main folder from '
                   'Finder into the Terminal window, press Enter. Never run a folder path on its own '
                   'without <font face="Courier">cd</font> in front.'))
-    s.append(sub('12.3  Xcode: "bundle identifier not available" / signing errors'))
+    s.append(sub('13.3  Xcode: "bundle identifier not available" / signing errors'))
     s.append(para('Section 7, last step — change the Bundle Identifier to '
                   '<font face="Courier">com.yourname.gymbro</font> and re-pick your Team.'))
-    s.append(sub('12.4  Xcode can\'t see my iPhone'))
+    s.append(sub('13.4  Xcode can\'t see my iPhone'))
     s.append(bullets([
         'Unlock the phone and keep it unlocked; check the cable is properly in.',
         'Tap <b>Trust</b> if the phone asks (again — iOS updates re-ask).',
         'Check <b>Developer Mode</b> is On (section 8.1) — iOS updates sometimes switch it off.',
         'Still nothing → unplug, replug, wait 30 seconds.',
     ]))
-    s.append(sub('12.5  The app icon suddenly does nothing'))
-    s.append(para('The 7-day signature expired — completely normal. Section 9. Your data is safe.'))
-    s.append(sub('12.6  "Untrusted Developer" when opening the app'))
+    s.append(sub('13.5  The app icon suddenly does nothing'))
+    s.append(para('The 7-day signature expired — completely normal. Section 9 (or SETUP-WINDOWS.pdf '
+                  'section 4 if you installed via AltStore). Your data is safe.'))
+    s.append(sub('13.6  "Untrusted Developer" when opening the app'))
     s.append(para('Phone → Settings → General → VPN &amp; Device Management → your Apple ID → Trust.'))
-    s.append(sub('12.7  AI says a key is missing'))
-    s.append(para('Section 10 — add your free Gemini key in Profile.'))
+    s.append(sub('13.7  AI says a key is missing'))
+    s.append(para('Section 11 — add your free Gemini key in Profile.'))
+    s.append(sub('13.8  Installed via AltStore instead?'))
+    s.append(para('AltStore-specific problems (won\'t install, "maximum app limit reached", refresh '
+                  'not working) are covered in <b>SETUP-WINDOWS.pdf</b>, section 6.'))
 
-    # ── 13 ──
-    s.append(heading('13. Where to get help'))
+    # ── 14 (was 13) ──
+    s.append(heading('14. Where to get help'))
     s.append(bullets([
         f'Open an issue at <b>{REPO}/issues</b> — describe what you clicked and copy the exact error text.',
         'Google AI Studio (free Gemini keys) — aistudio.google.com',
+        'AltStore / no-Mac install problems — see SETUP-WINDOWS.pdf',
         'Developers who want to modify the app: it\'s a standard Expo / React Native project — '
         f'see the README at {REPO}.',
     ]))

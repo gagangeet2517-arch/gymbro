@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppCard from '../../components/ui/AppCard';
 import { useExercises } from '../../context/ExerciseContext';
@@ -41,7 +42,11 @@ export default function CreateCustomExerciseScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        bottomOffset={20}
+      >
         <TouchableOpacity
           style={styles.backButton}
           activeOpacity={0.85}
@@ -107,7 +112,7 @@ export default function CreateCustomExerciseScreen() {
             <Text style={styles.saveButtonText}>Save Custom Exercise</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

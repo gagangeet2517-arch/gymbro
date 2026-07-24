@@ -21,6 +21,7 @@ import {
   UIManager,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FeatureHint from '../../components/ui/FeatureHint';
 import PressableScale from '../../components/ui/PressableScale';
@@ -1446,7 +1447,11 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bottomOffset={20}
+        >
 
           {/* ── Personal info ── */}
           <Text style={ps.sectionLabel}>Personal info</Text>
@@ -1708,7 +1713,7 @@ function ProfileSheet({ visible, onClose }: { visible: boolean; onClose: () => v
               : <Text style={ps.applyBtnText}>Save profile</Text>}
           </PressableScale>
 
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {Platform.OS === 'ios' && (
           <InputAccessoryView nativeID={PROFILE_KBD_ID}>
@@ -1785,7 +1790,11 @@ function MigrateSheet({ visible, onClose }: { visible: boolean; onClose: () => v
             <Ionicons name="close" size={18} color={C.textSub} />
           </TouchableOpacity>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bottomOffset={20}
+        >
           <View style={{ gap: 14, paddingBottom: 40 }}>
 
             {/* ── Export (Expo Go) ── */}
@@ -1839,7 +1848,7 @@ function MigrateSheet({ visible, onClose }: { visible: boolean; onClose: () => v
               </Text>
             )}
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
     </Modal>
   );

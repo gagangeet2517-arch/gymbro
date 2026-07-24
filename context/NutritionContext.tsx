@@ -15,7 +15,7 @@ export type MealEntry = {
   id: string;
   loggedAt: string;
   description: string;
-  source: 'photo' | 'barcode' | 'manual';
+  source: 'photo' | 'barcode' | 'manual' | 'text';
   calories: number;
   protein: number;
   carbs: number;
